@@ -6,6 +6,10 @@ section .text
 extern clear
 extern scan
 extern calibrate
+extern putc
+extern cursor
+extern pauseFor
+extern convert
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -26,7 +30,7 @@ global game
 game:
   ; Initialize game
 
-  FILL_SCREEN BG.BLACK
+  FILL_SCREEN FG.GRAY | BG.YELLOW
 
   ; Calibrate the timing
   call calibrate
@@ -35,13 +39,11 @@ game:
   game.loop:
     .input:
       call get_input
-
     ; Main loop.
 
     ; Here is where you will place your game logic.
     ; Develop procedures like paint_map and update_content,
     ; declare it extern and use here.
-
     jmp game.loop
 
 
@@ -56,19 +58,23 @@ draw.green:
 
 
 get_input:
+    ;mov eax, 1000
+    ;push eax
+    ;call pauseFor
+    ;add esp, 4
+    call cursor
     call scan
     push ax
     ; The value of the input is on 'word [esp]'
 
     ; Your bindings here
-    cmp al, KEY.UP
-    jne not_up
-    call draw.red
-    not_up:
-    cmp al, KEY.DOWN
-    jne not_down
-    call draw.green
-    not_down:
-
+    call convert
+    cmp bx, 0 | FG.GRAY | BG.BLACK
+    je no
+    ;mov bx, 'a' | FG.GRAY | BG.BLACK
+    push bx
+    call putc
+    add esp, 2
+    no:
     add esp, 2 ; free the stack
     ret

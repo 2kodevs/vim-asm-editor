@@ -244,3 +244,14 @@ delay:
     mov esp, ebp
     pop ebp
     ret
+
+global pauseFor
+pauseFor:
+    mov eax, [CMOS.SEC]
+    mov ebx, [esp + 4]
+    stopWhile:
+        mov edx, [CMOS.SEC]
+        sub edx, eax
+        cmp ebx, edx
+        ja stopWhile
+    ret
