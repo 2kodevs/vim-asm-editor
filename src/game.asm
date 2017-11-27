@@ -1,6 +1,9 @@
 %include "video.mac"
 %include "keyboard.mac"
 
+section .data
+
+
 section .text
 
 extern clear
@@ -10,6 +13,8 @@ extern putc
 extern cursor
 extern pauseFor
 extern convert
+extern start
+extern write
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -28,33 +33,40 @@ extern convert
 
 global game
 game:
-  ; Initialize game
+    ; Initialize game
+    FILL_SCREEN (FG.GRAY|BG.BLACK)
+    call start
 
-  FILL_SCREEN FG.GRAY | BG.YELLOW
+    ; Calibrate the timing
+    call calibrate
 
-  ; Calibrate the timing
-  call calibrate
-
+    ; wait Press
+    call scan
+    pressOnKey:
+        call scan
+        cmp al, 0
+        je pressOnKey
+    FILL_SCREEN (FG.GRAY|BG.BLACK)
   ; Snakasm main loop
   game.loop:
-    .input:
-      call get_input
-    ; Main loop.
+      .input:
+          call get_input
+          ; Main loop.
 
-    ; Here is where you will place your game logic.
-    ; Develop procedures like paint_map and update_content,
-    ; declare it extern and use here.
-    jmp game.loop
+          ; Here is where you will place your game logic.
+          ; Develop procedures like paint_map and update_content,
+          ; declare it extern and use here.
+          jmp game.loop
 
 
 draw.red:
-  FILL_SCREEN BG.RED
-  ret
+    FILL_SCREEN BG.RED
+    ret
 
 
 draw.green:
-  FILL_SCREEN BG.GREEN
-  ret
+    FILL_SCREEN BG.GREEN
+    ret
 
 
 get_input:
@@ -73,7 +85,7 @@ get_input:
     je no
     ;mov bx, 'a' | FG.GRAY | BG.BLACK
     push bx
-    call putc
+    call write
     add esp, 2
     no:
     add esp, 2 ; free the stack

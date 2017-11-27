@@ -1,6 +1,14 @@
 %include "keyboard.mac"
 %include "video.mac"
 
+; cambia a letra Mayuscula
+;%macro bind 2
+  ;cmp byte [esp], %1
+  ;jne %%next
+  ;call %2
+  ;%%next:
+;%endmacro
+
 section .text
 
 global convert
