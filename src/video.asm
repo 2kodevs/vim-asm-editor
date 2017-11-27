@@ -23,6 +23,7 @@ text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c
 raul dw "L" | DEFCOL, "a" | DEFCOL, "z" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "R" | DEFCOL, "a" | DEFCOL, "u" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "I" | DEFCOL, "g" | DEFCOL, "l" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "a" | DEFCOL, "s" | DEFCOL, " " | DEFCOL, "V" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL
 teno dw "M" | DEFCOL, "i" | DEFCOL, "g" | DEFCOL, "u" | DEFCOL, "e" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "T" | DEFCOL, "e" | DEFCOL, "n" | DEFCOL, "o" | DEFCOL, "r" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "o" | DEFCOL, "t" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "i" | DEFCOL
 finalText dw "P" | DEFCOL, "r" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "l" | DEFCOL, "q" | DEFCOL, "u" | DEFCOL, "i" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, " " | DEFCOL, "t" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "l" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "p" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL, "	" | DEFCOL, "c" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "t" | DEFCOL, "i" | DEFCOL, "n" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "." | DEFCOL, "." | DEFCOL, "." | DEFCOL
+insert dw "-" | DEFCOL, "I" | DEFCOL, "n" | DEFCOL, "s" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "t" | DEFCOL, "-" | DEFCOL
 
 section .text
 
@@ -31,11 +32,13 @@ section .text
 ; Clear the screen by filling it with char and attributes.
 global clear
 clear:
-    mov ax, [esp + 4] ; char, attrs
+    push ax
+    mov ax, [esp + 6] ; char, attrs
     mov edi, FBUFFER
     mov ecx, COLS * ROWS
     cld
     rep stosw
+    pop ax
     ret
 
 ; hace parpadear el puntero
@@ -75,6 +78,7 @@ write:
     mov [pointer], ax
     ret
 
+; Escribe 4 lineas de presentacion
 global start
 start:
     push esi
@@ -144,4 +148,41 @@ start:
         jmp endText
     ready:
     pop esi
+    ret
+
+; Pone el indicador de modo en -Insert-
+global putModeI
+putModeI:
+    push esi
+    mov bh, 1
+    mov bl, 24
+    mov esi, insert
+    mov ecx, 8
+    insertText:
+        cmp ecx, 0
+        je end
+        lodsw
+        push bx
+        push ax
+        call putc
+        pop ax
+        pop bx
+        inc bh
+        dec ecx
+        jmp insertText
+    end:
+    pop esi
+    ret
+
+; mueve el pointer y borra el ultimo char
+global backSpace
+backSpace:
+    push ax
+    mov ax, [pointer]
+    mov bx, [FBUFFER + eax]
+    mov bl, FG.GRAY | BG.BLACK
+    sub ax, 2
+    mov [FBUFFER + eax], bx
+    mov [pointer], ax
+    pop ax
     ret

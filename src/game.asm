@@ -15,6 +15,7 @@ extern pauseFor
 extern convert
 extern start
 extern write
+extern putModeI
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -35,28 +36,40 @@ global game
 game:
     ; Initialize game
     FILL_SCREEN (FG.GRAY|BG.BLACK)
-    call start
 
     ; Calibrate the timing
-    call calibrate
+    call calibrate        
 
-    ; wait Press
-    call scan
-    pressOnKey:
+    ; Snakasm main loop
+    game.loop:
+        
+        ; Pequenna presentasion
+        call start
+         
+        ; wait Press
         call scan
-        cmp al, 0
-        je pressOnKey
-    FILL_SCREEN (FG.GRAY|BG.BLACK)
-  ; Snakasm main loop
-  game.loop:
-      .input:
-          call get_input
-          ; Main loop.
+        pressOnKey:
+            call scan
+            cmp al, 0
+            je pressOnKey
+            
+        ; limpia la pantalla
+        FILL_SCREEN (FG.GRAY|BG.BLACK)
+        
+        cmp al, KEY.I
+        je .insertMode
+        jmp pressOnKey
+        
+        .insertMode:
+            call putModeI
+            .read:
+                call get_input
+                ; Main loop.
 
-          ; Here is where you will place your game logic.
-          ; Develop procedures like paint_map and update_content,
-          ; declare it extern and use here.
-          jmp game.loop
+                ; Here is where you will place your game logic.
+                ; Develop procedures like paint_map and update_content,
+                ; declare it extern and use here.
+                jmp .read
 
 
 draw.red:
