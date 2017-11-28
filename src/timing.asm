@@ -247,11 +247,26 @@ delay:
 
 global pauseFor
 pauseFor:
-    mov eax, [CMOS.SEC]
-    mov ebx, [esp + 4]
+    mov al, [CMOS.SEC]
+    call wait_in_progress
+    out 0x70, al
+    in al, 0x71
+    mov bl, [esp + 4]
+    mov cl, al
     stopWhile:
-        mov edx, [CMOS.SEC]
-        sub edx, eax
-        cmp ebx, edx
+        call wait_in_progress
+        mov al, [CMOS.SEC]
+        out 0x70, al
+        in al, 0x71
+        sub al, cl
+        cmp bl, al
         ja stopWhile
     ret
+
+; verifica el status Register A
+wait_in_progress:
+				mov	al, 0x0A
+				in al, 0x70
+				test al, 0x80
+				jnz	wait_in_progress
+        ret

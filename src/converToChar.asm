@@ -9,17 +9,34 @@
     %%next:
 %endmacro
 section .data
+
 global capsLockButton
 capsLockButton db 0
 
 section .text
 
 extern backSpace
+extern pointer
+extern move
 
 global convert
 convert:
     push ax
     mov ax, [esp + 6]
+    cmp al, KEY.LEFT
+    jne not_left
+    call move
+    mov bx, 0 | FG.GRAY | BG.BLACK
+    jmp f
+    not_left:
+    cmp al, KEY.LeftSHF
+    jne not_lshift
+    mov bl, [capsLockButton]
+    xor bl, 1
+    mov [capsLockButton], bl
+    mov bx, 0 | FG.GRAY | BG.BLACK
+    jmp f
+    not_lshift:
     cmp al, KEY.BckSp
     jne not_bsp
     call backSpace

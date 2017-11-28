@@ -4,7 +4,8 @@
 %define FBUFFER 0xB8000
 
 ; color inicial
-%define DEFCOL (FG.GRAY | BG.YELLOW)
+global DEFCOL
+%define DEFCOL (FG.GRAY | BG.BLACK)
 
 ; FBOFFSET(byte row, byte column)
 %macro FBOFFSET 2.nolist
@@ -18,16 +19,17 @@
 
 section .data
 
-pointer dw 0
+global pointer
+pointer dw 2198
 text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "t" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "d" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "M" | DEFCOL, "I" | DEFCOL
 raul dw "L" | DEFCOL, "a" | DEFCOL, "z" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "R" | DEFCOL, "a" | DEFCOL, "u" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "I" | DEFCOL, "g" | DEFCOL, "l" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "a" | DEFCOL, "s" | DEFCOL, " " | DEFCOL, "V" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL
 teno dw "M" | DEFCOL, "i" | DEFCOL, "g" | DEFCOL, "u" | DEFCOL, "e" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "T" | DEFCOL, "e" | DEFCOL, "n" | DEFCOL, "o" | DEFCOL, "r" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "o" | DEFCOL, "t" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "i" | DEFCOL
-finalText dw "P" | DEFCOL, "r" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "l" | DEFCOL, "q" | DEFCOL, "u" | DEFCOL, "i" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, " " | DEFCOL, "t" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "l" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "p" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL, "	" | DEFCOL, "c" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "t" | DEFCOL, "i" | DEFCOL, "n" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "." | DEFCOL, "." | DEFCOL, "." | DEFCOL
+finalText dw "P" | DEFCOL, "r" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "l" | DEFCOL, "q" | DEFCOL, "u" | DEFCOL, "i" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, " " | DEFCOL, "t" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "l" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "p" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "t" | DEFCOL, "i" | DEFCOL, "n" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "." | DEFCOL, "." | DEFCOL, "." | DEFCOL
 insert dw "-" | DEFCOL, "I" | DEFCOL, "n" | DEFCOL, "s" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "t" | DEFCOL, "-" | DEFCOL
 
 section .text
 
-
+extern pauseFor
 ; clear(byte char, byte attrs)
 ; Clear the screen by filling it with char and attributes.
 global clear
@@ -44,12 +46,25 @@ clear:
 ; hace parpadear el puntero
 global cursor
 cursor:
+    ;call pauseFor
     mov ax, [pointer]
-    inc ax
+    ;inc ax
     mov bx, [FBUFFER + eax]
     mov cl, 4
-    rol bl, cl
+    rol bh, cl ; averiguar que esta pasando
     mov [FBUFFER + eax], bx
+    ret
+
+repairCursor:
+    push ax
+    push bx
+    mov ax, [pointer]
+    mov bx, [FBUFFER + eax]
+    mov cl, 4
+    mov bh, DEFCOL
+    mov [FBUFFER + eax], bx
+    pop bx
+    pop ax
     ret
 
 ; putc(char chr, byte color, byte r, byte c)
@@ -63,11 +78,9 @@ putc:
     mov [FBUFFER + eax], bx
     ret
 
+; escribe en la posicion del cursor
 global write
 write:
-    ; calc famebuffer offset 2 * (r * COLS + c)
-    ;FBOFFSET [esp + 6], [esp + 7]
-
     mov bx, [esp + 4]
     mov ax, [pointer]
     mov [FBUFFER + eax], bx
@@ -179,10 +192,22 @@ global backSpace
 backSpace:
     push ax
     mov ax, [pointer]
-    mov bx, [FBUFFER + eax]
-    mov bl, FG.GRAY | BG.BLACK
+    mov bx, DEFCOL | 0
+    mov [FBUFFER + eax], bx
     sub ax, 2
     mov [FBUFFER + eax], bx
+    mov [pointer], ax
+    pop ax
+    ret
+
+;desplaza el cursor
+global move
+move:
+    push ax
+    mov ax, [pointer]
+    mov bl, DEFCOL 
+    mov [FBUFFER + eax + 1], bl
+    sub ax, 2
     mov [pointer], ax
     pop ax
     ret

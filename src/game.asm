@@ -16,6 +16,7 @@ extern convert
 extern start
 extern write
 extern putModeI
+extern pointer
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -43,18 +44,21 @@ game:
     ; Snakasm main loop
     game.loop:
         
-        ; Pequenna presentasion
+        ; Pequenna presentacion
         call start
          
         ; wait Press
         call scan
         pressOnKey:
+            call cursor
             call scan
             cmp al, 0
             je pressOnKey
             
-        ; limpia la pantalla
+        ; limpia la pantalla    Este fill esta fuera de lugar, solo se necesita la primera vez
         FILL_SCREEN (FG.GRAY|BG.BLACK)
+        mov bx, 0
+        mov [pointer], bx
         
         cmp al, KEY.I
         je .insertMode
@@ -83,10 +87,10 @@ draw.green:
 
 
 get_input:
-    ;mov eax, 1000
-    ;push eax
-    ;call pauseFor
-    ;add esp, 4
+    mov al, 1
+    push ax
+    call pauseFor
+    add esp, 2
     call cursor
     call scan
     push ax
