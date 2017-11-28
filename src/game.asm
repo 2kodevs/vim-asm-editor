@@ -36,7 +36,7 @@ extern pointer
 global game
 game:
     ; Initialize game
-    FILL_SCREEN (FG.GRAY|BG.BLACK)
+    FILL_SCREEN FG.GRAY|BG.BLACK
 
     ; Calibrate the timing
     call calibrate        
@@ -87,10 +87,10 @@ draw.green:
 
 
 get_input:
-    mov al, 1
-    push ax
-    call pauseFor
-    add esp, 2
+    ;mov al, 1
+    ;push ax
+    ;call pauseFor
+    ;add esp, 2
     call cursor
     call scan
     push ax

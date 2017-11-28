@@ -25,10 +25,40 @@ convert:
     mov ax, [esp + 6]
     cmp al, KEY.LEFT
     jne not_left
+    mov bx, -2
+    push bx
     call move
+    add esp, 2
     mov bx, 0 | FG.GRAY | BG.BLACK
     jmp f
     not_left:
+    cmp al, KEY.RIGHT
+    jne not_right
+    mov bx, 2
+    push bx
+    call move
+    add esp, 2
+    mov bx, 0 | FG.GRAY | BG.BLACK
+    jmp f
+    not_right:
+    cmp al, KEY.UP
+    jne not_up
+    mov bx, -160
+    push bx
+    call move
+    add esp, 2
+    mov bx, 0 | FG.GRAY | BG.BLACK
+    jmp f
+    not_up:
+    cmp al, KEY.DOWN
+    jne not_down
+    mov bx, 160
+    push bx
+    call move
+    add esp, 2
+    mov bx, 0 | FG.GRAY | BG.BLACK
+    jmp f
+    not_down:
     cmp al, KEY.LeftSHF
     jne not_lshift
     mov bl, [capsLockButton]

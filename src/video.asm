@@ -5,7 +5,7 @@
 
 ; color inicial
 global DEFCOL
-%define DEFCOL (FG.GRAY | BG.BLACK)
+%define DEFCOL FG.GRAY | BG.BLACK
 
 ; FBOFFSET(byte row, byte column)
 %macro FBOFFSET 2.nolist
@@ -21,6 +21,7 @@ section .data
 
 global pointer
 pointer dw 2198
+cursorColor db 0
 text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "t" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "d" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "M" | DEFCOL, "I" | DEFCOL
 raul dw "L" | DEFCOL, "a" | DEFCOL, "z" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "R" | DEFCOL, "a" | DEFCOL, "u" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "I" | DEFCOL, "g" | DEFCOL, "l" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "a" | DEFCOL, "s" | DEFCOL, " " | DEFCOL, "V" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL
 teno dw "M" | DEFCOL, "i" | DEFCOL, "g" | DEFCOL, "u" | DEFCOL, "e" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "T" | DEFCOL, "e" | DEFCOL, "n" | DEFCOL, "o" | DEFCOL, "r" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "o" | DEFCOL, "t" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "i" | DEFCOL
@@ -30,6 +31,7 @@ insert dw "-" | DEFCOL, "I" | DEFCOL, "n" | DEFCOL, "s" | DEFCOL, "e" | DEFCOL, 
 section .text
 
 extern pauseFor
+
 ; clear(byte char, byte attrs)
 ; Clear the screen by filling it with char and attributes.
 global clear
@@ -47,6 +49,9 @@ clear:
 global cursor
 cursor:
     ;call pauseFor
+    mov al, [cursorColor]
+    xor al, 1
+    mov [cursorColor], al
     mov ax, [pointer]
     ;inc ax
     mov bx, [FBUFFER + eax]
@@ -55,15 +60,14 @@ cursor:
     mov [FBUFFER + eax], bx
     ret
 
+; arregla el posible cambio de coloracion provocado por el cursor
 repairCursor:
     push ax
-    push bx
-    mov ax, [pointer]
-    mov bx, [FBUFFER + eax]
-    mov cl, 4
-    mov bh, DEFCOL
-    mov [FBUFFER + eax], bx
-    pop bx
+    mov al, [cursorColor]
+    cmp al, 0
+    je .end
+    call cursor
+    .end:
     pop ax
     ret
 
@@ -82,11 +86,13 @@ putc:
 global write
 write:
     mov bx, [esp + 4]
+    mov al, 0
+    mov [cursorColor], al
     mov ax, [pointer]
     mov [FBUFFER + eax], bx
-    mov bl, [esp + 5]
-    mov [FBUFFER + eax + 3], bl
-    mov [FBUFFER + eax - 1], bl
+    ;mov bl, [esp + 5]
+    ;mov [FBUFFER + eax + 3], bl
+    ;mov [FBUFFER + eax - 1], bl
     add ax, 2
     mov [pointer], ax
     ret
@@ -191,9 +197,9 @@ putModeI:
 global backSpace
 backSpace:
     push ax
+    call repairCursor
     mov ax, [pointer]
-    mov bx, DEFCOL | 0
-    mov [FBUFFER + eax], bx
+    mov bx, 0 | DEFCOL
     sub ax, 2
     mov [FBUFFER + eax], bx
     mov [pointer], ax
@@ -204,10 +210,10 @@ backSpace:
 global move
 move:
     push ax
+    call repairCursor
     mov ax, [pointer]
-    mov bl, DEFCOL 
-    mov [FBUFFER + eax + 1], bl
-    sub ax, 2
+    mov bx, [esp + 6]
+    add ax, bx
     mov [pointer], ax
     pop ax
     ret
