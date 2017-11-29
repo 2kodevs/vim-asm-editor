@@ -17,6 +17,16 @@ global DEFCOL
     shl ax, 1
 %endmacro
 
+%macro UPD_POINTER 1.nolist
+    add ax, %1
+    cmp ax, 0
+    jl %%end
+    cmp ax, 3838
+    jg %%end
+    mov [pointer], ax
+    %%end:
+%endmacro
+
 section .data
 
 global pointer
@@ -93,8 +103,7 @@ write:
     ;mov bl, [esp + 5]
     ;mov [FBUFFER + eax + 3], bl
     ;mov [FBUFFER + eax - 1], bl
-    add ax, 2
-    mov [pointer], ax
+    UPD_POINTER 2
     ret
 
 ; Escribe 4 lineas de presentacion
@@ -200,9 +209,8 @@ backSpace:
     call repairCursor
     mov ax, [pointer]
     mov bx, 0 | DEFCOL
-    sub ax, 2
+    UPD_POINTER -2
     mov [FBUFFER + eax], bx
-    mov [pointer], ax
     pop ax
     ret
 
@@ -212,8 +220,6 @@ move:
     push ax
     call repairCursor
     mov ax, [pointer]
-    mov bx, [esp + 6]
-    add ax, bx
-    mov [pointer], ax
+    UPD_POINTER [esp + 6]
     pop ax
     ret
