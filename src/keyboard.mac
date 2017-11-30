@@ -7,6 +7,16 @@
 %define KEY.RIGHT 0x4D
 %define KEY.ENTER 0x1C
 %define KEY.Esc   0x01
+%define KEY.1     0x02
+%define KEY.2	  0x03
+%define KEY.3	  0x04
+%define KEY.4	  0x05
+%define KEY.5	  0x06
+%define KEY.6	  0x07
+%define KEY.7	  0x08
+%define KEY.8	  0x09
+%define KEY.9	  0x0A
+%define KEY.0	  0x0B
 %define KEY.Script   0x0C
 %define KEY.Equal    0x0D
 %define KEY.BckSp 0x0E
@@ -65,15 +75,15 @@
 %define KEY.F10   0x44
 %define KEY.NumLock  0x45
 %define KEY.ScrLck   0x46
-%define KEY.Home  0x47
-%define KEY.PgUP  0x49
-%define KEY.numLess 0x4A
-%define KEY.num5 0x4C
-%define KEY.numPlus 0x4E 
-%define KEY.num1 0x4F
-%define KEY.PgDwn  0x51
-%define KEY.numZero 0x52
-%define KEY.numDel   0x53
+%define KEY.Home       0x47
+%define KEY.PgUP       0x49
+%define KEY.numLess    0x4A
+%define KEY.num5       0x4C
+%define KEY.numPlus    0x4E 
+%define KEY.num1       0x4F
+%define KEY.PgDwn      0x51
+%define KEY.numZero    0x52
+%define KEY.numDel     0x53
 %define KEY.ShiftF1    0x54
 %define KEY.ShiftF2    0x55
 %define KEY.ShiftF3    0x56
@@ -154,6 +164,5 @@
 %define KEY.Alt/(num)  0xA4
 %define KEY.AltTab     0xA5
 %define KEY.AltEnter(num) 0xA6
-
 
 %endif ; KEYBOARD_MAC

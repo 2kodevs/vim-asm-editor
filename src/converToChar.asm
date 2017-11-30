@@ -10,6 +10,10 @@
 %endmacro
 section .data
 
+character db "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\", "a", "s", "d", "f", "g", "h", "j", "k", "l", 59, 96, "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", " "
+uppers db "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "{", "}", "|", "A", "S", "D", "F", "G", "H", "J", "K", "L", 34, "Z", "X", "C", "V", "B", "N", "M", "<", ">", "?", " "
+Keys db KEY.Aprox, KEY.1, KEY.2, KEY.3, KEY.4, KEY.5, KEY.6, KEY.7, KEY.8, KEY.9, KEY.0, KEY.Script, KEY.Equal, KEY.Q, KEY.W, KEY.E, KEY.R, KEY.T, KEY.Y, KEY.U, KEY.I, KEY.O, KEY.P, KEY.OpenSquare, KEY.ClosedSquare, KEY.Back_Slash, KEY.A, KEY.S, KEY.D, KEY.F, KEY.G, KEY.H, KEY.J, KEY.K, KEY.L, KEY.Two_Dots, KEY.Quotes, KEY.Z, KEY.X, KEY.C, KEY.V, KEY.B, KEY.N, KEY.M, KEY.Comma, KEY.Dot, KEY.Slash, KEY.Spc
+
 global capsLockButton
 capsLockButton db 0
 
