@@ -13,6 +13,7 @@ extern putc                 ; pone un caracter en una posicion <x, y>
 extern cursor               ; hace parpadear el cursor
 extern pauseFor             ; detiene el tiempo (no funciona)
 extern convert              ; devuelve el caracter
+extern convert2              ; devuelve el caracter
 extern start                ; pone la presentacion
 extern write                ; escribe directo al bufer
 extern putModeI             ; escribe el modo -Insert-
@@ -98,7 +99,7 @@ get_input:
     ; The value of the input is on 'word [esp]'
 
     ; Your bindings here
-    call convert
+    call convert2
     cmp bx, 0 | FG.GRAY | BG.BLACK
     je no
     ;mov bx, 'a' | FG.GRAY | BG.BLACK

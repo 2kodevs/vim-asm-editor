@@ -10,9 +10,9 @@
 %endmacro
 section .data
 
-character db "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\", "a", "s", "d", "f", "g", "h", "j", "k", "l", 59, 96, "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", " "
-uppers db "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "{", "}", "|", "A", "S", "D", "F", "G", "H", "J", "K", "L", 34, "Z", "X", "C", "V", "B", "N", "M", "<", ">", "?", " "
-Keys db KEY.Aprox, KEY.1, KEY.2, KEY.3, KEY.4, KEY.5, KEY.6, KEY.7, KEY.8, KEY.9, KEY.0, KEY.Script, KEY.Equal, KEY.Q, KEY.W, KEY.E, KEY.R, KEY.T, KEY.Y, KEY.U, KEY.I, KEY.O, KEY.P, KEY.OpenSquare, KEY.ClosedSquare, KEY.Back_Slash, KEY.A, KEY.S, KEY.D, KEY.F, KEY.G, KEY.H, KEY.J, KEY.K, KEY.L, KEY.Two_Dots, KEY.Quotes, KEY.Z, KEY.X, KEY.C, KEY.V, KEY.B, KEY.N, KEY.M, KEY.Comma, KEY.Dot, KEY.Slash, KEY.Spc
+characters db "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\", "a", "s", "d", "f", "g", "h", "j", "k", "l", 59, 96, "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", " "
+uppers db "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "{", "}", "|", "A", "S", "D", "F", "G", "H", "J", "K", "L", ":", 34, "Z", "X", "C", "V", "B", "N", "M", "<", ">", "?", " "
+keys db KEY.Aprox, KEY.1, KEY.2, KEY.3, KEY.4, KEY.5, KEY.6, KEY.7, KEY.8, KEY.9, KEY.0, KEY.Script, KEY.Equal, KEY.Q, KEY.W, KEY.E, KEY.R, KEY.T, KEY.Y, KEY.U, KEY.I, KEY.O, KEY.P, KEY.OpenSquare, KEY.ClosedSquare, KEY.Back_Slash, KEY.A, KEY.S, KEY.D, KEY.F, KEY.G, KEY.H, KEY.J, KEY.K, KEY.L, KEY.Two_Dots, KEY.Quotes, KEY.Z, KEY.X, KEY.C, KEY.V, KEY.B, KEY.N, KEY.M, KEY.Comma, KEY.Dot, KEY.Slash, KEY.Spc
 
 global capsLockButton
 capsLockButton db 0
@@ -23,6 +23,92 @@ extern backSpace
 extern pointer
 extern move
 
+; con inst de cadena, deja en bx el caracter
+global convert2
+convert2:
+    push ax
+    xor ebx, ebx
+    mov ax, [esp + 6]
+    mov edi, keys
+    mov cl, 48
+    cld
+    repne scasb
+    mov bl, 48
+    sub bl, cl
+    dec bl
+    cmp al, [keys + ebx]
+    jne .noVisibleChar
+    inc bl
+    mov cl, bl ; porque bl contiene las repeticiones
+    mov dl, [capsLockButton] 
+    cmp dl, 1
+    je .up
+    mov esi, characters
+    jmp .conti
+    .up:
+    mov esi, uppers
+    .conti:
+    rep lodsb
+    mov bx, FG.GRAY | BG.BLACK
+    mov bl, al
+    jmp .ret
+    .noVisibleChar:
+        cmp al, KEY.LEFT
+        jne .not_left
+        mov bx, -2
+        push bx
+        call move
+        add esp, 2
+        mov bx, 0 | FG.GRAY | BG.BLACK
+        jmp .ret
+        .not_left:
+        cmp al, KEY.RIGHT
+        jne .not_right
+        mov bx, 2
+        push bx
+        call move
+        add esp, 2
+        mov bx, 0 | FG.GRAY | BG.BLACK
+        jmp .ret
+        .not_right:
+        cmp al, KEY.UP
+        jne .not_up
+        mov bx, -160
+        push bx
+        call move
+        add esp, 2
+        mov bx, 0 | FG.GRAY | BG.BLACK
+        jmp .ret
+        .not_up:
+        cmp al, KEY.DOWN
+        jne .not_down
+        mov bx, 160
+        push bx
+        call move
+        add esp, 2
+        mov bx, 0 | FG.GRAY | BG.BLACK
+        jmp .ret
+        .not_down:
+        cmp al, KEY.CapsLock
+        jne .not_capslock
+        mov bl, [capsLockButton]
+        xor bl, 1
+        mov [capsLockButton], bl
+        mov bx, 0 | FG.GRAY | BG.BLACK
+        jmp .ret
+        .not_capslock:
+        cmp al, KEY.BckSp
+        jne .not_bsp
+        call backSpace
+        mov bx, 0 | FG.GRAY | BG.BLACK
+        jmp .ret
+        .not_bsp:
+        mov bx, 0 | FG.GRAY | BG.BLACK
+    .ret:
+        pop ax
+        ret
+        
+; sin inst de cadena
 global convert
 convert:
     push ax

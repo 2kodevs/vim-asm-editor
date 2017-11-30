@@ -17,9 +17,18 @@ global DEFCOL
     shl ax, 1
 %endmacro
 
+; Pinta un texto dado, con su buffer y su length
+%macro OUTPUT_LINE 3.nolist
+    cld
+    mov esi, %1
+    mov edi, %2
+    mov ecx, %3
+    rep movsw
+%endmacro
+
 ; Ajusta todos los punteros
 %macro UPD_POINTER 1.nolist
-    ;suma el desplazamiento
+    ;suma el desplazamiento dl cursor
     add ax, %1
     mov [pointer], ax          
     mov bx, [viewStart]
@@ -35,7 +44,7 @@ global DEFCOL
     mov bx, [viewStart]
     add bx, 160
     mov [viewStart], bx
-    sub ax, 160
+    sub ax, 160 ; se salio el cursor x debajo
     mov [pointer], ax
     jmp %%end
     %%less:
@@ -44,7 +53,7 @@ global DEFCOL
         je %%undo
         sub bx, 160
         mov [viewStart], bx
-        add ax, 160
+        add ax, 160 ; necesario xq el pointer se salio por encima
         mov [pointer], ax
         jmp %%end
         %%undo:
@@ -56,7 +65,7 @@ global DEFCOL
 section .data
 
 global input
-input times 2000000 dw 0 | DEFCOL
+input times 3000000 dw 0 | DEFCOL
 
 global viewStart
 viewStart dw 0
@@ -71,7 +80,7 @@ text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c
 raul dw "L" | DEFCOL, "a" | DEFCOL, "z" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "R" | DEFCOL, "a" | DEFCOL, "u" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "I" | DEFCOL, "g" | DEFCOL, "l" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "a" | DEFCOL, "s" | DEFCOL, " " | DEFCOL, "V" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL
 teno dw "M" | DEFCOL, "i" | DEFCOL, "g" | DEFCOL, "u" | DEFCOL, "e" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "T" | DEFCOL, "e" | DEFCOL, "n" | DEFCOL, "o" | DEFCOL, "r" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "o" | DEFCOL, "t" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "i" | DEFCOL
 finalText dw "P" | DEFCOL, "r" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "l" | DEFCOL, "q" | DEFCOL, "u" | DEFCOL, "i" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, " " | DEFCOL, "t" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "l" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "p" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "t" | DEFCOL, "i" | DEFCOL, "n" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "." | DEFCOL, "." | DEFCOL, "." | DEFCOL
-insert dw "-" | DEFCOL, "I" | DEFCOL, "n" | DEFCOL, "s" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "t" | DEFCOL, "-" | DEFCOL
+insert dw "-" | DEFCOL, "-" | DEFCOL, "I" | DEFCOL, "N" | DEFCOL, "S" | DEFCOL, "E" | DEFCOL, "R" | DEFCOL, "T" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
 
 section .text
 
@@ -98,10 +107,9 @@ cursor:
     xor al, 1
     mov [cursorColor], al
     mov ax, [pointer]
-    ;inc ax
     mov bx, [FBUFFER + eax]
     mov cl, 4
-    rol bh, cl ; averiguar que esta pasando
+    rol bh, cl 
     mov [FBUFFER + eax], bx
     ret
 
@@ -131,7 +139,7 @@ putc:
 global write
 write:
     mov bx, [esp + 4]
-    mov al, 0
+    xor al, al
     mov [cursorColor], al
     mov ax, [pointer]
     mov [FBUFFER + eax], bx
@@ -143,18 +151,18 @@ global writeScroll
 writeScroll:
     xor ebx, ebx
     mov bx, [esp + 4]
-    mov al, 0
+    xor eax, eax
     mov [cursorColor], al
-    xor eax, eax 
     mov ax, [pointer]
     add ax, [viewStart]
     ; escribe en el texto + la posicion inicial actual + el cursor
     mov [input + eax], bx
     ; actualiza el valor de la posicion dl ultimo char
     cmp ax, [lastChar]
-    jl .conti
+    jbe .conti
     mov [lastChar], ax
     .conti:
+    mov ax, [pointer]
     UPD_POINTER 2
     call printAll
     ret
@@ -172,11 +180,15 @@ printAll:
     mov edi, FBUFFER
 	mov ebx, input
 	add bx, [lastChar]
-	xor eax, eax
+    cld
+    mov cx, 0
     .loop:
+        cmp cx, 3838
+        ja .ret
         cmp esi, ebx
-        jg .ret
+        ja .ret
         movsw
+        add cx, 2
         jmp .loop
     .ret:
     ret
@@ -184,97 +196,16 @@ printAll:
 ; Escribe 4 lineas de presentacion
 global start
 start:
-    push esi
-    mov bh, 30
-    mov bl, 10
-    mov esi, text
-    mov ecx, 97
-    putText:
-        cmp ecx, 82
-        je next
-        lodsw
-        push bx
-        push ax
-        call putc
-        pop ax
-        pop bx
-        inc bh
-        dec ecx
-        jmp putText
-        next:
-        mov bh, 25
-        mov bl, 11
-        mov esi, raul
-        nameR:
-        cmp ecx, 57
-        je next2
-        lodsw
-        push bx
-        push ax
-        call putc
-        pop ax
-        pop bx
-        inc bh
-        dec ecx
-        jmp nameR
-        next2:
-        mov bh, 30
-        mov bl, 12
-        mov esi, teno
-        nameT:
-        cmp ecx, 42
-        je next3
-        lodsw
-        push bx
-        push ax
-        call putc
-        pop ax
-        pop bx
-        inc bh
-        dec ecx
-        jmp nameT
-        next3:
-        mov bh, 17
-        mov bl, 13
-        mov esi, finalText
-        endText:
-        cmp ecx, 0
-        je ready
-        lodsw
-        push bx
-        push ax
-        call putc
-        pop ax
-        pop bx
-        inc bh
-        dec ecx
-        jmp endText
-    ready:
-    pop esi
+    OUTPUT_LINE text, FBUFFER + 1660, 15
+    OUTPUT_LINE raul, FBUFFER + 1810, 25
+    OUTPUT_LINE teno, FBUFFER + 1980, 15
+    OUTPUT_LINE finalText, FBUFFER + 2114, 42
     ret
 
 ; Pone el indicador de modo en -Insert-
 global putModeI
 putModeI:
-    push esi
-    mov bh, 1
-    mov bl, 24
-    mov esi, insert
-    mov ecx, 8
-    insertText:
-        cmp ecx, 0
-        je end
-        lodsw
-        push bx
-        push ax
-        call putc
-        pop ax
-        pop bx
-        inc bh
-        dec ecx
-        jmp insertText
-    end:
-    pop esi
+    OUTPUT_LINE insert, FBUFFER + 3842, 10
     ret
 
 ; mueve el pointer y borra el ultimo char
