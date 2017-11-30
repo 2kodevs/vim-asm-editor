@@ -202,7 +202,7 @@ convert:
     not_o:
     cmp al, KEY.P
     jne not_p
-    mov bx, 113 | FG.GRAY | BG.BLACK
+    mov bx, 112 | FG.GRAY | BG.BLACK
     TO_UPPER
     jmp f
     not_p:

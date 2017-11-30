@@ -6,17 +6,18 @@ section .data
 
 section .text
 
-extern clear
-extern scan
-extern calibrate
-extern putc
-extern cursor
-extern pauseFor
-extern convert
-extern start
-extern write
-extern putModeI
-extern pointer
+extern clear                ; limpia la pantalla
+extern scan                 ; lee del teclado
+extern calibrate            ; hace algo
+extern putc                 ; pone un caracter en una posicion <x, y>
+extern cursor               ; hace parpadear el cursor
+extern pauseFor             ; detiene el tiempo (no funciona)
+extern convert              ; devuelve el caracter
+extern start                ; pone la presentacion
+extern write                ; escribe directo al bufer
+extern putModeI             ; escribe el modo -Insert-
+extern pointer              ; puntero del cursor
+extern writeScroll          ; escribe al array que proporciona sensacion de scroll
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -102,7 +103,7 @@ get_input:
     je no
     ;mov bx, 'a' | FG.GRAY | BG.BLACK
     push bx
-    call write
+    call writeScroll
     add esp, 2
     no:
     add esp, 2 ; free the stack
