@@ -55,37 +55,37 @@ convert2:
     .noVisibleChar:
         cmp al, KEY.LEFT
         jne .not_left
-        mov bx, -2
-        push bx
+        mov ebx, -2
+        push ebx
         call move
-        add esp, 2
+        add esp, 4
         mov bx, 0 | FG.GRAY | BG.BLACK
         jmp .ret
         .not_left:
         cmp al, KEY.RIGHT
         jne .not_right
-        mov bx, 2
-        push bx
+        mov ebx, 2
+        push ebx
         call move
-        add esp, 2
+        add esp, 4
         mov bx, 0 | FG.GRAY | BG.BLACK
         jmp .ret
         .not_right:
         cmp al, KEY.UP
         jne .not_up
-        mov bx, -160
-        push bx
+        mov ebx, -160
+        push ebx
         call move
-        add esp, 2
+        add esp, 4
         mov bx, 0 | FG.GRAY | BG.BLACK
         jmp .ret
         .not_up:
         cmp al, KEY.DOWN
         jne .not_down
-        mov bx, 160
-        push bx
+        mov ebx, 160
+        push ebx
         call move
-        add esp, 2
+        add esp, 4
         mov bx, 0 | FG.GRAY | BG.BLACK
         jmp .ret
         .not_down:

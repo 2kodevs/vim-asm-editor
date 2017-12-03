@@ -26,55 +26,51 @@ global DEFCOL
     rep movsw
 %endmacro
 
+; pinta toda la pantalla
+%macro PRINT 0.nolist
+    mov eax, [viewStart]
+    add eax, input
+    OUTPUT_LINE eax, FBUFFER, COLS*ROWS
+%endmacro
+
 ; Ajusta todos los punteros
 %macro UPD_POINTER 1.nolist
-    ;suma el desplazamiento dl cursor
-    add ax, %1
-    mov [pointer], ax          
-    mov bx, [viewStart]
-    mov cx, ax
-    add cx, bx
-    ;compara con el cursor el puntero al inicio del texto
-    cmp cx, bx
-    jl %%less
-    add bx, 3838
-    ; lo compara con el fin
-    cmp cx, bx
-    jle %%end
-    mov bx, [viewStart]
-    add bx, 160
-    mov [viewStart], bx
-    sub ax, 160 ; se salio el cursor x debajo
-    mov [pointer], ax
+    mov ebx, [viewStart]
+    ; adiciona el incremento del puntero
+    add eax, %1
+    cmp eax, 0
+    jl %%down_adjust
+    cmp eax, 3838
+    ja %%up_adjust
     jmp %%end
-    %%less:
-        ; verifica si se esta en el inicio del texto
-        cmp bx, 0
-        je %%undo
-        sub bx, 160
-        mov [viewStart], bx
-        add ax, 160 ; necesario xq el pointer se salio por encima
-        mov [pointer], ax
+    %%down_adjust:
+        cmp ebx, 0
+        je %%real_end
+        add eax, 160
+        sub ebx, 160
         jmp %%end
-        %%undo:
-            sub ax, %1
-            mov [pointer], ax
+    %%up_adjust:
+        sub eax, 160
+        add ebx, 160
+        jmp %%end
     %%end:
+        mov [pointer], eax
+        mov [viewStart], ebx
+    %%real_end:
 %endmacro
 
 section .data
 
 global input
-input times 3000000 dw 0 | DEFCOL
+input times 2000000 dw 0 | DEFCOL
 
 global viewStart
-viewStart dw 0
-
-lastChar dw 0
+viewStart dd 0
 
 global pointer
-pointer dw 2198
+pointer dd 2198
 
+lastChar dd 0
 cursorColor db 0
 text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "t" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "d" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "M" | DEFCOL, "I" | DEFCOL
 raul dw "L" | DEFCOL, "a" | DEFCOL, "z" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "R" | DEFCOL, "a" | DEFCOL, "u" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "I" | DEFCOL, "g" | DEFCOL, "l" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "a" | DEFCOL, "s" | DEFCOL, " " | DEFCOL, "V" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL
@@ -106,7 +102,7 @@ cursor:
     mov al, [cursorColor]
     xor al, 1
     mov [cursorColor], al
-    mov ax, [pointer]
+    mov eax, [pointer]
     mov bx, [FBUFFER + eax]
     mov cl, 4
     rol bh, cl 
@@ -115,13 +111,13 @@ cursor:
 
 ; arregla el posible cambio de coloracion provocado por el cursor
 repairCursor:
-    push ax
+    push eax
     mov al, [cursorColor]
     cmp al, 0
     je .end
     call cursor
     .end:
-    pop ax
+    pop eax
     ret
 
 ; putc(char chr, byte color, byte r, byte c)
@@ -141,7 +137,7 @@ write:
     mov bx, [esp + 4]
     xor al, al
     mov [cursorColor], al
-    mov ax, [pointer]
+    mov eax, [pointer]
     mov [FBUFFER + eax], bx
     UPD_POINTER 2
     ret
@@ -153,45 +149,20 @@ writeScroll:
     mov bx, [esp + 4]
     xor eax, eax
     mov [cursorColor], al
-    mov ax, [pointer]
-    add ax, [viewStart]
+    mov eax, [pointer]
+    add eax, [viewStart]
     ; escribe en el texto + la posicion inicial actual + el cursor
     mov [input + eax], bx
     ; actualiza el valor de la posicion dl ultimo char
-    cmp ax, [lastChar]
+    cmp eax, [lastChar]
     jbe .conti
-    mov [lastChar], ax
+    mov [lastChar], eax
     .conti:
-    mov ax, [pointer]
+    mov eax, [pointer]
     UPD_POINTER 2
-    call printAll
+    PRINT
     ret
 
-; pinta todo lo visualizable desde el inicio hasta 
-;el ultimo caracter introducido
-printAll:
-    mov ax, 0 | DEFCOL
-    push ax
-    call clear
-    pop ax
-    mov ax, [viewStart]
-    mov esi, input
-    add esi, eax
-    mov edi, FBUFFER
-	mov ebx, input
-	add bx, [lastChar]
-    cld
-    mov cx, 0
-    .loop:
-        cmp cx, 3838
-        ja .ret
-        cmp esi, ebx
-        ja .ret
-        movsw
-        add cx, 2
-        jmp .loop
-    .ret:
-    ret
 
 ; Escribe 4 lineas de presentacion
 global start
@@ -211,24 +182,24 @@ putModeI:
 ; mueve el pointer y borra el ultimo char
 global backSpace
 backSpace:
-    push ax
+    push eax
     call repairCursor
-    mov ax, [pointer]
+    mov eax, [pointer]
     UPD_POINTER -2
     mov bx, 0 | DEFCOL
-    add ax, [viewStart]
+    add eax, [viewStart]
     mov [input + eax], bx
-    call printAll
-    pop ax
+    PRINT
+    pop eax
     ret
 
 ;desplaza el cursor
 global move
 move:
-    push ax
+    push eax
     call repairCursor
-    mov ax, [pointer]
-    UPD_POINTER [esp + 6]
-    call printAll
-    pop ax
+    mov eax, [pointer]
+    UPD_POINTER [esp + 8]
+    PRINT
+    pop eax
     ret

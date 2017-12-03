@@ -59,8 +59,8 @@ game:
             
         ; limpia la pantalla    Este fill esta fuera de lugar, solo se necesita la primera vez
         FILL_SCREEN (FG.GRAY|BG.BLACK)
-        mov bx, 0
-        mov [pointer], bx
+        mov ebx, 0
+        mov [pointer], ebx
         
         cmp al, KEY.I
         je .insertMode
