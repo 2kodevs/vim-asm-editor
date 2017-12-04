@@ -12,16 +12,18 @@ global scan
 scan:
   ; Scan.
   in al, 0x60
+  mov bl, al
 
   ; If scancode has changed, update key and return it.
   cmp al, [key]
-  je .zero
+  je .release
   mov [key], al
   jmp .ret
 
-  ; Otherwise, return zero.
-  .zero:
-    xor eax, eax
+  .release:
+    add al, 80h
+    out 0x60, al
+    mov al, bl
 
   .ret:
     ret

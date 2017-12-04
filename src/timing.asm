@@ -28,6 +28,10 @@ section .bss
 global tpms
 tpms resd 1
 
+; Timers for pauseCursor
+timerA resd 1
+timerD resd 1
+
 section .text
 
 ; rtcs()
@@ -259,20 +263,19 @@ pauseCursorForASecond:
 
 global pauseCursor
 pauseCursor:
-    ;call calibrate
     call tps
     rdtsc
 
-    ;Save in timerX the actual timer
+    ; Save in timerX the actual timer
     mov [timerA], eax
     mov [timerD], edx
 
-    ;Calcular la relacion mills-ticks
+    ;  Calcular la relacion mills-ticks
     mov ebx, eax
     mov ecx, tpms
-    mov eax, 1  ;The value is the ms (the perfect cursor delay is 150)
+    mov eax, 150  ; The value is the ms (the perfect cursor delay is 150)
     mul ecx
-    ;en edi:esi los milliseconds convertidos
+    ; en edi:esi los milliseconds convertidos
     mov esi, eax 
     mov edi, edx
 
@@ -280,7 +283,7 @@ pauseCursor:
     xor edx, edx
     call delayCursor
     ret
-;Return if al least edi:esi milliseconds have elapsed since the first call
+; Return if al least edi:esi milliseconds have elapsed since the first call
 delayCursor:
   call tps
   .loopDelay:

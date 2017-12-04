@@ -11,7 +11,7 @@ extern scan                 ; lee del teclado
 extern calibrate            ; hace algo
 extern putc                 ; pone un caracter en una posicion <x, y>
 extern cursor               ; hace parpadear el cursor
-extern pauseFor             ; detiene el tiempo (no funciona)
+extern pauseCursor          ; detiene el tiempo
 extern convert              ; devuelve el caracter
 extern start                ; pone la presentacion
 extern write                ; escribe directo al bufer
@@ -53,7 +53,10 @@ game:
         pressOnKey:
             call cursor
             call scan
-            cmp al, 0
+            push ax
+            call convert
+            pop ax
+            cmp bx, 0 | FG.GRAY | BG.BLACK
             je pressOnKey
             
         ; limpia la pantalla    Este fill esta fuera de lugar, solo se necesita la primera vez
@@ -90,7 +93,6 @@ draw.green:
 get_input:
     ;mov al, 1
     ;push ax
-    ;call pauseFor
     ;add esp, 2
     call cursor
     call scan

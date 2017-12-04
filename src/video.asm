@@ -93,7 +93,7 @@ clear:
 ; hace parpadear el puntero
 global cursor
 cursor:
-    call pauseCursor
+    ;call pauseCursor  ; Funciona delay actual:150 si quieres descomenta esta linea pero ponle 1 ms en timing
     mov al, [cursorColor]
     xor al, 1
     mov [cursorColor], al
