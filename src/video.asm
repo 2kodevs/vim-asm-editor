@@ -75,7 +75,7 @@ insert dw "-" | DEFCOL, "I" | DEFCOL, "n" | DEFCOL, "s" | DEFCOL, "e" | DEFCOL, 
 
 section .text
 
-extern pauseFor
+extern pauseCursor
 
 ; clear(byte char, byte attrs)
 ; Clear the screen by filling it with char and attributes.
@@ -93,7 +93,7 @@ clear:
 ; hace parpadear el puntero
 global cursor
 cursor:
-    ;call pauseFor
+    call pauseCursor
     mov al, [cursorColor]
     xor al, 1
     mov [cursorColor], al

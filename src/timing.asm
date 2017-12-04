@@ -245,28 +245,55 @@ delay:
     pop ebp
     ret
 
-global pauseFor
-pauseFor:
-    mov al, [CMOS.SEC]
-    call wait_in_progress
-    out 0x70, al
-    in al, 0x71
-    mov bl, [esp + 4]
-    mov cl, al
-    stopWhile:
-        call wait_in_progress
-        mov al, [CMOS.SEC]
-        out 0x70, al
-        in al, 0x71
-        sub al, cl
-        cmp bl, al
-        ja stopWhile
+global pauseCursorForASecond
+pauseCursorForASecond:
+
+    ; Return if a second hasn't passed since last call.
+  .continuePause:
+    call rtcs
+    cmp al, [psec]
+    je .continuePause
+    mov [psec], al
     ret
 
-; verifica el status Register A
-wait_in_progress:
-				mov	al, 0x0A
-				in al, 0x70
-				test al, 0x80
-				jnz	wait_in_progress
-        ret
+
+global pauseCursor
+pauseCursor:
+    ;call calibrate
+    call tps
+    rdtsc
+
+    ;Save in timerX the actual timer
+    mov [timerA], eax
+    mov [timerD], edx
+
+    ;Calcular la relacion mills-ticks
+    mov ebx, eax
+    mov ecx, tpms
+    mov eax, 1  ;The value is the ms (the perfect cursor delay is 150)
+    mul ecx
+    ;en edi:esi los milliseconds convertidos
+    mov esi, eax 
+    mov edi, edx
+
+    xor eax, eax
+    xor edx, edx
+    call delayCursor
+    ret
+;Return if al least edi:esi milliseconds have elapsed since the first call
+delayCursor:
+  call tps
+  .loopDelay:
+    rdtsc
+    sub eax, [timerA]
+    sub edx, [timerD]
+    cmp edx, edi 
+    ja .ret
+    jb .loopDelay
+    cmp eax, esi
+    jb .loopDelay
+  .ret:
+    xor esi, esi
+    xor eax, eax
+    xor edi, edi
+    ret     
