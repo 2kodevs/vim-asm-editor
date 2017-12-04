@@ -30,28 +30,43 @@
 %endmacro
 
 ; desplaza las letras para su derecha
-%macro MOVE_ALL_RIGTH 0.nolist
+%macro MOVE_ALL_RIGTH 1.nolist
     cld
+    mov eax, [pointer]
+    add eax, [viewStart]
     mov esi, input
     add esi, eax
     lodsw
-    %%move:
+    mov ebx, %1
+    cmp ebx, 0
+    je %%moveLine
+    mov ebx, [lastChar]
+    add ebx, input
+    jmp %%moveText
+    %%moveLine:
         xchg ax, [esi]
         cmp ax, 0 | DEFCOL
         je %%end
         cmp ax, 10 | DEFCOL
         je %%end
         add esi, 2
-        jmp %%move
+        jmp %%moveLine
+    %%moveText:
+        xchg ax, [esi]
+        cmp esi, ebx
+        je %%end
+        add esi, 2
+        jmp %%moveText
     %%end:
         add esi, 2
         mov [esi], ax
         mov eax, lastChar
         add eax, input
         cmp eax, esi
-        jnl %%ret
-        sub esi, input
-        mov [lastChar], esi
+        jle %%ret
+        mov eax, [lastChar]
+        add eax, 2
+        mov [lastChar], eax
     %%ret:
 %endmacro
 
@@ -66,9 +81,10 @@
     sub edi, 2
     %%move:
         movsw
-        cmp dword [esi], 0 | DEFCOL
+        mov ax, [esi - 2]
+        cmp ax, 0 | DEFCOL
         je %%end
-        cmp dword [esi], 10 | DEFCOL
+        cmp ax, 10 | DEFCOL
         je %%end
         jmp %%move
     %%end:
@@ -83,30 +99,37 @@
 
 ; Ajusta todos los punteros
 %macro UPD_POINTER 1.nolist
-    ; setea la linea actual
-    mov eax, [lineCounter]
+    mov eax, [pointer]
+    add eax, [viewStart]
     add eax, %1
-    cmp eax, 0
-    jl %%previousLine
-    cmp eax, 160
-    jge %%nextLine
-    jmp %%otherPointers
-    %%previousLine:
-        ; verifica no estar en la linea 0
-        mov ebx, [line]
-        cmp ebx, 0
-        je %%otherPointers
-        sub ebx, 1
-        mov [line], ebx
-        add eax, 160
+    cmp eax, [lastChar]
+    jg %%real_end
+    %%start:
+        ; setea la linea actual
+        mov eax, [lineCounter]
+        add eax, %1
         mov [lineCounter], eax
+        cmp eax, 0
+        jl %%previousLine
+        cmp eax, 160
+        jge %%nextLine
         jmp %%otherPointers
-    %%nextLine:
-        mov ebx, [line]
-        add ebx, 1
-        mov [line], ebx
-        sub eax, 160
-        mov [lineCounter], eax
+        %%previousLine:
+            ; verifica no estar en la linea 0
+            mov ebx, [line]
+            cmp ebx, 0
+            je %%otherPointers
+            sub ebx, 1
+            mov [line], ebx
+            add eax, 160
+            mov [lineCounter], eax
+            jmp %%otherPointers
+        %%nextLine:
+            mov ebx, [line]
+            add ebx, 1
+            mov [line], ebx
+            sub eax, 160
+            mov [lineCounter], eax
     %%otherPointers:
         mov eax, [pointer]
         mov ebx, [viewStart]
@@ -127,10 +150,28 @@
             sub eax, 160
             add ebx, 160
             jmp %%end
-    %%end:
-        mov [pointer], eax
-        mov [viewStart], ebx
+        %%end:
+            mov [pointer], eax
+            mov [viewStart], ebx
     %%real_end:
+%endmacro
+
+; mueve el puntero hasta el siguiente caracter dado un sentido, un avance
+%macro FORWARD 2.nolist
+    UPD_POINTER %2
+    %%start:
+        mov eax, [pointer]
+        add eax, [viewStart]
+        mov bx, [input + eax]
+        cmp bx, 0 | DEFCOL
+        je %%update
+        cmp bx, 10 | DEFCOL
+        je %%update
+        jmp %%end
+        %%update:
+            UPD_POINTER %1
+            jmp %%start
+    %%end:
 %endmacro
 
 section .data
@@ -245,14 +286,14 @@ writeScroll:
 global nonReWrite
 nonReWrite:
     xor ebx, ebx
-    mov bx, [esp + 4]
     xor eax, eax
     mov [cursorColor], al
     mov eax, [pointer]
     add eax, [viewStart]
     push eax
-    MOVE_ALL_RIGTH
+    MOVE_ALL_RIGTH 0
     pop eax
+    mov bx, [esp + 4]
     ; escribe en el texto + la posicion inicial actual + el cursor
     mov [input + eax], bx
     ; actualiza el valor de la posicion dl ultimo char
@@ -319,17 +360,33 @@ finishLine:
     push eax
     push ebx
     call repairCursor
-    mov ecx, [line]
-    .unFinish:
-        MOVE_ALL_RIGTH
-        UPD_POINTER 2
-        mov eax, [line]
-        cmp ecx, eax
-        je .unFinish
-    mov bx, 32 | DEFCOL
+    mov edx, [line]
     mov eax, [pointer]
     add eax, [viewStart]
+    push eax
+    MOVE_ALL_RIGTH 1
+    UPD_POINTER 2
+    pop eax
+    mov bx, 10 | DEFCOL
     mov [input + eax], bx
+    mov bx, 0 | DEFCOL
+    push bx
+    ; repite el ciclo mientras se encuentre en la misma fila el cursor
+    .unFinish:
+        MOVE_ALL_RIGTH 1
+        mov eax, [pointer]
+        push eax
+        UPD_POINTER 2
+        pop eax
+        mov bx, [esp]
+        mov [input + eax], bx
+        PRINT
+        call cursor
+        mov eax, [line]
+        cmp edx, eax
+        je .unFinish
+    pop bx
+    PRINT
     pop ebx
     pop eax
     ret
