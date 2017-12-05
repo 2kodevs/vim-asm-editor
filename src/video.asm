@@ -84,54 +84,59 @@
 
 ; Ajusta todos los punteros
 %macro UPD_POINTER 1.nolist
-    ; setea la linea actual
-    mov eax, [lineCounter]
-    add eax, %1
-    mov [lineCounter], eax
-    cmp eax, 0
-    jl %%previousLine
-    cmp eax, 160
-    jge %%nextLine
-    jmp %%otherPointers
-    %%previousLine:
-        add eax, 160
-        mov [lineCounter], eax
-        ; verifica no estar en la linea 0
-        mov ebx, [line]
-        cmp ebx, 0
-        je %%otherPointers
-        sub ebx, 1
-        mov [line], ebx
-        jmp %%otherPointers
-    %%nextLine:
-        mov ebx, [line]
-        add ebx, 1
-        mov [line], ebx
-        sub eax, 160
-        mov [lineCounter], eax
-    %%otherPointers:
-        mov eax, [pointer]
-        mov ebx, [viewStart]
-        ; adiciona el incremento del puntero
+    mov eax, [pointer]
+    add eax, [viewStart]
+    cmp eax, [lastChar]
+    jg %%real_end
+    %%start:
+        ; setea la linea actual
+        mov eax, [lineCounter]
         add eax, %1
+        mov [lineCounter], eax
         cmp eax, 0
-        jl %%down_adjust
-        cmp eax, 3838
-        ja %%up_adjust
-        jmp %%end
-        %%down_adjust:
-            cmp ebx, 0
-            je %%real_end
+        jl %%previousLine
+        cmp eax, 160
+        jge %%nextLine
+        jmp %%otherPointers
+        %%previousLine:
             add eax, 160
-            sub ebx, 160
-            jmp %%end
-        %%up_adjust:
+            mov [lineCounter], eax
+            ; verifica no estar en la linea 0
+            mov ebx, [line]
+            cmp ebx, 0
+            je %%otherPointers
+            sub ebx, 1
+            mov [line], ebx
+            jmp %%otherPointers
+        %%nextLine:
+            mov ebx, [line]
+            add ebx, 1
+            mov [line], ebx
             sub eax, 160
-            add ebx, 160
+            mov [lineCounter], eax
+        %%otherPointers:
+            mov eax, [pointer]
+            mov ebx, [viewStart]
+            ; adiciona el incremento del puntero
+            add eax, %1
+            cmp eax, 0
+            jl %%down_adjust
+            cmp eax, 3838
+            ja %%up_adjust
             jmp %%end
-    %%end:
-        mov [pointer], eax
-        mov [viewStart], ebx
+            %%down_adjust:
+                cmp ebx, 0
+                je %%real_end
+                add eax, 160
+                sub ebx, 160
+                jmp %%end
+            %%up_adjust:
+                sub eax, 160
+                add ebx, 160
+                jmp %%end
+        %%end:
+            mov [pointer], eax
+            mov [viewStart], ebx
     %%real_end:
 %endmacro
 
