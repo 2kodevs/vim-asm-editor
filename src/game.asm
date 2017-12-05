@@ -13,11 +13,14 @@ extern putc                 ; pone un caracter en una posicion <x, y>
 extern cursor               ; hace parpadear el cursor
 extern pauseCursor          ; detiene el tiempo
 extern convert              ; devuelve el caracter
+extern convert2             ; devuelve el caracter
 extern start                ; pone la presentacion
 extern write                ; escribe directo al bufer
 extern putModeI             ; escribe el modo -Insert-
 extern pointer              ; puntero del cursor
 extern writeScroll          ; escribe al array que proporciona sensacion de scroll
+extern nonReWrite           ; no sobrescribe
+extern writeMode            ; tipo de escritura
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -37,7 +40,7 @@ extern writeScroll          ; escribe al array que proporciona sensacion de scro
 global game
 game:
     ; Initialize game
-    FILL_SCREEN FG.GRAY|BG.BLACK
+    FILL_SCREEN DEFCOL
 
     ; Calibrate the timing
     call calibrate        
@@ -60,9 +63,9 @@ game:
             je pressOnKey
             
         ; limpia la pantalla    Este fill esta fuera de lugar, solo se necesita la primera vez
-        FILL_SCREEN (FG.GRAY|BG.BLACK)
-        mov bx, 0
-        mov [pointer], bx
+        FILL_SCREEN DEFCOL
+        mov ebx, 0
+        mov [pointer], ebx
         
         cmp al, KEY.I
         je .insertMode
@@ -100,12 +103,18 @@ get_input:
     ; The value of the input is on 'word [esp]'
 
     ; Your bindings here
-    call convert
-    cmp bx, 0 | FG.GRAY | BG.BLACK
+    call convert2
+    cmp bx, 0 | DEFCOL
     je no
-    ;mov bx, 'a' | FG.GRAY | BG.BLACK
     push bx
+    mov bl, [writeMode]
+    cmp bl, 1
+    je .reWrite
+    call nonReWrite
+    jmp .conti
+    .reWrite:
     call writeScroll
+    .conti:
     add esp, 2
     no:
     add esp, 2 ; free the stack
