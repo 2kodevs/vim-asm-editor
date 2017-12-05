@@ -33,7 +33,8 @@
 %macro MOVE_ALL_RIGTH 0.nolist
     cld
     mov esi, input
-    add esi, eax
+    add esi, [pointer]
+    add esi, [viewStart]
     lodsw
     %%move:
         xchg ax, [esi]
@@ -86,20 +87,21 @@
     ; setea la linea actual
     mov eax, [lineCounter]
     add eax, %1
+    mov [lineCounter], eax
     cmp eax, 0
     jl %%previousLine
     cmp eax, 160
     jge %%nextLine
     jmp %%otherPointers
     %%previousLine:
+        add eax, 160
+        mov [lineCounter], eax
         ; verifica no estar en la linea 0
         mov ebx, [line]
         cmp ebx, 0
         je %%otherPointers
         sub ebx, 1
         mov [line], ebx
-        add eax, 160
-        mov [lineCounter], eax
         jmp %%otherPointers
     %%nextLine:
         mov ebx, [line]
@@ -319,17 +321,31 @@ finishLine:
     push eax
     push ebx
     call repairCursor
-    mov ecx, [line]
-    .unFinish:
-        MOVE_ALL_RIGTH
-        UPD_POINTER 2
-        mov eax, [line]
-        cmp ecx, eax
-        je .unFinish
-    mov bx, 32 | DEFCOL
+    mov edx, [line]
     mov eax, [pointer]
     add eax, [viewStart]
+    push eax
+    MOVE_ALL_RIGTH
+    UPD_POINTER 2
+    pop eax
+    mov bx, 10 | DEFCOL
     mov [input + eax], bx
+    mov bx, 0 | DEFCOL
+    push bx    
+    .unFinish:
+        mov eax, [pointer]
+        add eax, [viewStart]
+        push eax
+        MOVE_ALL_RIGTH
+        UPD_POINTER 2
+        pop eax
+        mov bx, [esp]
+        mov [input + eax], bx
+        mov eax, [line]
+        cmp edx, eax
+        je .unFinish
+    pop bx
+    PRINT
     pop ebx
     pop eax
     ret
