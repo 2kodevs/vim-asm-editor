@@ -30,12 +30,18 @@
 %endmacro
 
 ; desplaza las letras para su derecha
-%macro MOVE_ALL_RIGTH 0.nolist
+%macro MOVE_ALL_RIGTH 1.nolist
     cld
     mov esi, input
     add esi, [pointer]
     add esi, [viewStart]
     lodsw
+    mov bx, %1
+    cmp bx, 0
+    je %%move
+    mov ebx, [lastChar]
+    add ebx, input
+    jmp %%text
     %%move:
         xchg ax, [esi]
         cmp ax, 0 | DEFCOL
@@ -44,15 +50,22 @@
         je %%end
         add esi, 2
         jmp %%move
+    %%text:
+        xchg ax, [esi]
+        cmp esi, ebx
+        jge %%end
+        add esi, 2
+        jmp %%text
     %%end:
         add esi, 2
         mov [esi], ax
         mov eax, lastChar
         add eax, input
         cmp eax, esi
-        jnl %%ret
-        sub esi, input
-        mov [lastChar], esi
+        jle %%ret
+        mov eax, [lastChar]
+        add eax, 2
+        mov [lastChar], eax
     %%ret:
 %endmacro
 
@@ -84,10 +97,10 @@
 
 ; Ajusta todos los punteros
 %macro UPD_POINTER 1.nolist
-    mov eax, [pointer]
-    add eax, [viewStart]
-    cmp eax, [lastChar]
-    jg %%real_end
+    ;mov eax, [pointer]
+    ;add eax, [viewStart]
+    ;cmp eax, [lastChar]
+    ;jge %%real_end
     %%start:
         ; setea la linea actual
         mov eax, [lineCounter]
@@ -140,6 +153,28 @@
     %%real_end:
 %endmacro
 
+%macro MOVE_TEXT 1.nolist
+    cld
+    mov esi, %1
+    mov ebx, [lastChar]
+    add ebx, input
+    lodsw
+    %%text:
+        xchg ax, [esi]
+        cmp esi, ebx
+        jge %%end
+        add esi, 2
+        jmp %%text
+    %%end:
+        add esi, 2
+        mov [esi], ax
+        mov eax, lastChar
+        add eax, input
+        cmp eax, esi
+        jle %%ret
+        mov eax, [lastChar]
+        add eax, 2
+%endmacro
 section .data
 
 global input
@@ -252,14 +287,14 @@ writeScroll:
 global nonReWrite
 nonReWrite:
     xor ebx, ebx
-    mov bx, [esp + 4]
     xor eax, eax
     mov [cursorColor], al
     mov eax, [pointer]
     add eax, [viewStart]
     push eax
-    MOVE_ALL_RIGTH
+    MOVE_ALL_RIGTH 0
     pop eax
+    mov bx, [esp + 4]
     ; escribe en el texto + la posicion inicial actual + el cursor
     mov [input + eax], bx
     ; actualiza el valor de la posicion dl ultimo char
@@ -330,7 +365,7 @@ finishLine:
     mov eax, [pointer]
     add eax, [viewStart]
     push eax
-    MOVE_ALL_RIGTH
+    MOVE_ALL_RIGTH 1
     UPD_POINTER 2
     pop eax
     mov bx, 10 | DEFCOL
@@ -341,7 +376,7 @@ finishLine:
         mov eax, [pointer]
         add eax, [viewStart]
         push eax
-        MOVE_ALL_RIGTH
+        MOVE_ALL_RIGTH 1
         UPD_POINTER 2
         pop eax
         mov bx, [esp]
