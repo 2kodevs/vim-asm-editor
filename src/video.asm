@@ -35,18 +35,35 @@
     mov esi, input
     add esi, [pointer]
     add esi, [viewStart]
+    mov ebx, [lineCounter]
     lodsw
+    add ebx, 2
+    cmp ebx, 160
+    jne %%move
+    mov ebx, 0
     %%move:
-        xchg ax, [esi]
         cmp ax, 0 | DEFCOL
         je %%end
         cmp ax, 10 | DEFCOL
-        je %%end
+        je %%check
+        xchg ax, [esi]
         add esi, 2
+        add ebx, 2
+        cmp ebx, 160
+        jne %%move
+        mov ebx, 0
         jmp %%move
+    %%check:
+        cmp ebx, 0
+        jne %%end
+        push eax
+        push esi
+        ADVANCE_TEXT [line]
+        PRINT
+        pop esi
+        pop eax
     %%end:
-        add esi, 2
-        mov [esi], ax
+        xchg [esi], ax
         mov eax, lastChar
         add eax, input
         cmp eax, esi
@@ -62,19 +79,51 @@
     cmp eax, 0
     je %%impossible
     cld
+    mov ecx, 0
     mov esi, input
     add esi, eax
     mov edi, esi
     sub edi, 2
+    mov ebx, [lineCounter]
+    add ebx, 2
+    cmp ebx, 160
+    jne %%move
+    mov ebx, 0
     %%move:
+        cmp word [esi], 0 | DEFCOL
+        je %%end
+        cmp word [esi], 10 | DEFCOL
+        je %%check
         movsw
-        cmp dword [esi], 0 | DEFCOL
-        je %%end
-        cmp dword [esi], 10 | DEFCOL
-        je %%end
+        add ebx, 2
+        cmp ebx, 160
+        jne %%move
+        mov ebx, 0
         jmp %%move
+    %%check:
+        mov ecx, 10
+        ;cmp ebx, 160
+        ;jne %%end
+        ;push eax
+        ;push esi
+        ;ADVANCE_TEXT [line]
+        ;PRINT
+        ;pop esi
+        ;pop eax
     %%end:
         movsw
+        cmp ecx, 10
+        jne %%conti
+        cmp ebx, 2
+        jne %%conti
+        push eax
+        push esi
+        BACK_TEXT [line]
+        PRINT
+        pop esi
+        pop eax
+        %%conti:
+        mov word [esi], 0 | DEFCOL
         sub esi, input
         cmp esi, [lastChar]
         jne %%impossible
@@ -145,51 +194,96 @@
     %%real_end:
 %endmacro
 
-%macro MOVE_TEXT 0.nolist
-    cld
-    mov esi, %1
-    mov ebx, [lastChar]
+; despalza todas las lineas del texto una por una hacia abajo
+%macro ADVANCE_TEXT 1.nolist
+    mov eax, [graderLine]
+    cmp eax, %1
+    je %%end
+    add eax, 1
+    mov [graderLine], eax
+    sub eax, 1
+    mov ebx, 160
+    imul ebx
+    mov ecx, eax
+    mov eax, %1
+    imul ebx
+    mov ebx, eax
+    mov eax, ecx
+    add eax, input
     add ebx, input
-    lodsw
-    %%text:
-        xchg ax, [esi]
-        cmp esi, ebx
-        jge %%end
-        add esi, 2
-        jmp %%text
+    mov edx, eax
+    add edx, 160
+    %%ciclo:
+        cmp eax, ebx
+        je %%end
+        OUTPUT_LINE eax, edx, 80
+        OUTPUT_LINE nullLine, eax, 80
+        sub eax, 160
+        sub edx, 160
+        jmp %%ciclo
     %%end:
-        add esi, 2
-        mov [esi], ax
-        cmp ebx, esi
-        jle %%ret
-        mov eax, [lastChar]
-        add eax, 2
-        mov [lastChar], eax
-    %%ret:
 %endmacro
+
+; despalza todas las lineas del texto una por una hacia arriba
+%macro BACK_TEXT 1.nolist
+    mov eax, [graderLine]
+    sub eax, 2
+    cmp eax, %1
+    jbe %%end
+    add eax, 2
+    mov ebx, 160
+    imul ebx
+    mov ecx, eax
+    mov eax, %1
+    add eax, 2
+    imul ebx
+    mov ebx, ecx
+    add eax, input
+    add ebx, input
+    mov edx, eax
+    sub edx, 160
+    %%ciclo:
+        cmp eax, ebx
+        je %%end
+        OUTPUT_LINE eax, edx, 80
+        OUTPUT_LINE nullLine, eax, 80
+        sub eax, 160
+        sub edx, 160
+        jmp %%ciclo
+    %%end:
+%endmacro
+
 
 section .data
 
+; array donde se guarda la entrada
 global input
 input times 2000000 dw 0 | DEFCOL
 
+; puntero apuntando a la inicial inicial mostrada en los BUFFERS
 global viewStart
 viewStart dd 0
 
+; puntero que indica la posicion del cursor en los BUFFERS
 global pointer
 pointer dd 2198
 
-line dd 0
-graderLine dd 0
-lineCounter dd 0
 
-lastChar dd 0
-cursorColor db 0
+line dd 0               ;linea actual
+graderLine dd 0         ;mayor linea alcanzada
+lineCounter dd 0        ;indicador de columna
+lastChar dd 0           ;posicion del ultimo caracter
+cursorColor db 0        ;indicador de estado del cursor
+
+; textos predefinidos
 text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "t" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "d" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "M" | DEFCOL, "I" | DEFCOL
 raul dw "L" | DEFCOL, "a" | DEFCOL, "z" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "R" | DEFCOL, "a" | DEFCOL, "u" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "I" | DEFCOL, "g" | DEFCOL, "l" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "a" | DEFCOL, "s" | DEFCOL, " " | DEFCOL, "V" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL
 teno dw "M" | DEFCOL, "i" | DEFCOL, "g" | DEFCOL, "u" | DEFCOL, "e" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "T" | DEFCOL, "e" | DEFCOL, "n" | DEFCOL, "o" | DEFCOL, "r" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "o" | DEFCOL, "t" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "i" | DEFCOL
 finalText dw "P" | DEFCOL, "r" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "l" | DEFCOL, "q" | DEFCOL, "u" | DEFCOL, "i" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, " " | DEFCOL, "t" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "l" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "p" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "t" | DEFCOL, "i" | DEFCOL, "n" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "." | DEFCOL, "." | DEFCOL, "." | DEFCOL
 insert dw "-" | DEFCOL, "-" | DEFCOL, "I" | DEFCOL, "N" | DEFCOL, "S" | DEFCOL, "E" | DEFCOL, "R" | DEFCOL, "T" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
+
+; linea vacia
+nullLine times 80 dw 0 | DEFCOL
 
 section .text
 
@@ -322,6 +416,7 @@ backSpace:
     push eax
     call repairCursor
     mov eax, [pointer]
+    add eax, [viewStart]
     mov bl, [writeMode]
     cmp bl, 1
     je .reWrite
@@ -349,39 +444,51 @@ move:
     pop eax
     ret
 
-;desplaza el cursor
+;pone el enter camina el cursor hasta la siguiente fila y pone el texto correctamente 
 global finishLine
 finishLine:
     push eax
     push ebx
     call repairCursor
-    mov edx, [line]
     mov eax, [pointer]
     add eax, [viewStart]
     push eax
-    add eax, input
-    MOVE_TEXT eax
-    UPD_POINTER 2
-    pop eax
-    mov bx, 10 | DEFCOL
-    mov [input + eax], bx
-    mov bx, 0 | DEFCOL
-    ;push bx    
+    ;mov al, [writeMode]
+    ;cmp al, 1
+    ;je .reWrite
+    ;MOVE_ALL_RIGTH
+    ;.reWrite:
+    ADVANCE_TEXT [line]
+    ;UPD_POINTER 2
+    ;pop eax
+    mov edx, [line]
+    ;mov bx, 10 | DEFCOL
+    ;mov [input + eax], bx
+    ;mov eax, [pointer]
+    ;add eax, [viewStart]
+    ;push eax
+    mov ecx, 0    
     .unFinish:
         mov eax, [pointer]
         add eax, [viewStart]
         push eax
-        add eax, input
-        ;MOVE_TEXT eax
         UPD_POINTER 2
         pop eax
-        ;mov bx, [esp]
-        ;mov [input + eax], bx
         mov eax, [line]
+        add ecx, 1
         cmp edx, eax
         je .unFinish
-    ;pop bx
-    ;call repairEnter
+    pop eax
+    add eax, input
+    mov ebx, input
+    add ebx, [viewStart]
+    add ebx, [pointer]
+    push ecx
+    OUTPUT_LINE eax, ebx, ecx
+    pop ecx
+    OUTPUT_LINE nullLine, eax, ecx
+    mov bx, 10 | DEFCOL
+    mov [eax], bx
     PRINT
     pop ebx
     pop eax
@@ -391,43 +498,59 @@ finishLine:
 repairEnter:
     push eax
     push ebx
-    cld
-    mov ebx, [lastChar]
-    add ebx, input
     mov esi, input
-    mov ecx, 0
-    .search:
-        cmp esi, ebx
-        je .end
+    add esi, [pointer]
+    add esi, [viewStart]
+    mov ebx, [lineCounter]
+    mov edx, [line]
+    .findNextEnter:
         lodsw
-        cmp ax, 10 | DEFCOL
-        je .move
-        add ecx, 2
-        cmp ecx, 160
-        jb .conti
-        sub ecx, 160
+        add ebx, 2
+        cmp ebx, 160
+        jne .conti
+        sub ebx, 160
+        inc edx
+        cmp edx, [graderLine]
+        ja .ret
         .conti:
-        
-        jmp .search
-    .move:
-        add ecx, 2
-        cmp ecx, 160
-        jb .continue
-        sub ecx, 160
-        jmp .search
-        cmp esi, ebx
-        je .end
-       .continue:
-            cmp dword [esi], 0 | DEFCOL
-            je .move
-            push esi
-            push ebx
-            MOVE_TEXT esi
-            pop ebx
-            pop esi
-            ;mov dword [esi], 0 | DEFCOL
-            jmp .move
-    .end:
-        pop ebx
-        pop eax
+        cmp ax, 10 | DEFCOL
+        jne .findNextEnter
+        cmp ebx, 0
+        je .findNextEnter
+       .check:
+           lodsw
+           add ebx, 2
+           cmp ebx, 160
+           jne .verify
+           sub ebx, 160
+           inc edx
+           cmp edx, [graderLine]
+           ja .ret
+           jmp .findNextEnter
+           .verify:
+           cmp ax, 0 | DEFCOL
+           je .check
+           push edx
+           push esi
+           push ebx
+           ADVANCE_TEXT edx
+           pop ebx
+           pop esi
+           mov ecx, 160
+           sub ecx, ebx
+           mov eax, ecx
+           shr ecx, 1
+           push ebx
+           push esi
+           sub esi, 2
+           mov edi, esi
+           add edi, eax
+           OUTPUT_LINE esi, edi, ecx
+           pop esi
+           pop ebx
+           pop edx
+           jmp .findNextEnter
+    .ret:
+        push ebx
+        push eax
         ret
