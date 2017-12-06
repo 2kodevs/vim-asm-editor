@@ -11,6 +11,13 @@ section .text
 global scan
 scan:
   ; Scan.
+  ;in al, 0x64
+  ;test al, 1
+  ;jz scan
+  ;in al, 0x64
+  ;test al, 32
+  ;jnz scan
+
   in al, 0x60
 
   ; If scancode has changed, update key and return it.

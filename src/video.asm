@@ -30,18 +30,12 @@
 %endmacro
 
 ; desplaza las letras para su derecha
-%macro MOVE_ALL_RIGTH 1.nolist
+%macro MOVE_ALL_RIGTH 0.nolist
     cld
     mov esi, input
     add esi, [pointer]
     add esi, [viewStart]
     lodsw
-    mov bx, %1
-    cmp bx, 0
-    je %%move
-    mov ebx, [lastChar]
-    add ebx, input
-    jmp %%text
     %%move:
         xchg ax, [esi]
         cmp ax, 0 | DEFCOL
@@ -50,12 +44,6 @@
         je %%end
         add esi, 2
         jmp %%move
-    %%text:
-        xchg ax, [esi]
-        cmp esi, ebx
-        jge %%end
-        add esi, 2
-        jmp %%text
     %%end:
         add esi, 2
         mov [esi], ax
@@ -125,6 +113,10 @@
             mov ebx, [line]
             add ebx, 1
             mov [line], ebx
+            cmp [graderLine], ebx
+            jae %%conti
+            mov [graderLine], ebx
+            %%conti:
             sub eax, 160
             mov [lineCounter], eax
         %%otherPointers:
@@ -153,7 +145,7 @@
     %%real_end:
 %endmacro
 
-%macro MOVE_TEXT 1.nolist
+%macro MOVE_TEXT 0.nolist
     cld
     mov esi, %1
     mov ebx, [lastChar]
@@ -168,13 +160,14 @@
     %%end:
         add esi, 2
         mov [esi], ax
-        mov eax, lastChar
-        add eax, input
-        cmp eax, esi
+        cmp ebx, esi
         jle %%ret
         mov eax, [lastChar]
         add eax, 2
+        mov [lastChar], eax
+    %%ret:
 %endmacro
+
 section .data
 
 global input
@@ -187,6 +180,7 @@ global pointer
 pointer dd 2198
 
 line dd 0
+graderLine dd 0
 lineCounter dd 0
 
 lastChar dd 0
@@ -292,7 +286,7 @@ nonReWrite:
     mov eax, [pointer]
     add eax, [viewStart]
     push eax
-    MOVE_ALL_RIGTH 0
+    MOVE_ALL_RIGTH
     pop eax
     mov bx, [esp + 4]
     ; escribe en el texto + la posicion inicial actual + el cursor
@@ -365,27 +359,75 @@ finishLine:
     mov eax, [pointer]
     add eax, [viewStart]
     push eax
-    MOVE_ALL_RIGTH 1
+    add eax, input
+    MOVE_TEXT eax
     UPD_POINTER 2
     pop eax
     mov bx, 10 | DEFCOL
     mov [input + eax], bx
     mov bx, 0 | DEFCOL
-    push bx    
+    ;push bx    
     .unFinish:
         mov eax, [pointer]
         add eax, [viewStart]
         push eax
-        MOVE_ALL_RIGTH 1
+        add eax, input
+        ;MOVE_TEXT eax
         UPD_POINTER 2
         pop eax
-        mov bx, [esp]
-        mov [input + eax], bx
+        ;mov bx, [esp]
+        ;mov [input + eax], bx
         mov eax, [line]
         cmp edx, eax
         je .unFinish
-    pop bx
+    ;pop bx
+    ;call repairEnter
     PRINT
     pop ebx
     pop eax
     ret
+
+; probando
+repairEnter:
+    push eax
+    push ebx
+    cld
+    mov ebx, [lastChar]
+    add ebx, input
+    mov esi, input
+    mov ecx, 0
+    .search:
+        cmp esi, ebx
+        je .end
+        lodsw
+        cmp ax, 10 | DEFCOL
+        je .move
+        add ecx, 2
+        cmp ecx, 160
+        jb .conti
+        sub ecx, 160
+        .conti:
+        
+        jmp .search
+    .move:
+        add ecx, 2
+        cmp ecx, 160
+        jb .continue
+        sub ecx, 160
+        jmp .search
+        cmp esi, ebx
+        je .end
+       .continue:
+            cmp dword [esi], 0 | DEFCOL
+            je .move
+            push esi
+            push ebx
+            MOVE_TEXT esi
+            pop ebx
+            pop esi
+            ;mov dword [esi], 0 | DEFCOL
+            jmp .move
+    .end:
+        pop ebx
+        pop eax
+        ret
