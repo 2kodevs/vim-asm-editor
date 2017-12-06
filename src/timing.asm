@@ -273,7 +273,7 @@ pauseCursor:
     ;  Calcular la relacion mills-ticks
     mov ebx, eax
     mov ecx, tpms
-    mov eax, 150  ; The value is the ms (the perfect cursor delay is 150)
+    mov eax, 150 ; The value is the ms (the perfect cursor delay is 150)
     mul ecx
     ; en edi:esi los milliseconds convertidos
     mov esi, eax 
@@ -281,8 +281,9 @@ pauseCursor:
 
     xor eax, eax
     xor edx, edx
-    call delayCursor
+    call delayCursor   
     ret
+    
 ; Return if al least edi:esi milliseconds have elapsed since the first call
 delayCursor:
   call tps

@@ -1,8 +1,8 @@
 %include "video.mac"
 %include "keyboard.mac"
 
-section .data
-
+section .bss
+lastKey resb 1 ; Ultima tecla presionada en el insertMode
 
 section .text
 
@@ -17,6 +17,8 @@ extern convert2             ; devuelve el caracter
 extern start                ; pone la presentacion
 extern write                ; escribe directo al bufer
 extern putModeI             ; escribe el modo -Insert-
+extern putModeV             ; Write -Visual- and start visual mode
+extern putModeN
 extern pointer              ; puntero del cursor
 extern writeScroll          ; escribe al array que proporciona sensacion de scroll
 extern nonReWrite           ; no sobrescribe
@@ -57,7 +59,7 @@ game:
             call cursor
             call scan
             push ax
-            call convert
+            call convert2
             pop ax
             cmp bx, 0 | FG.GRAY | BG.BLACK
             je pressOnKey
@@ -66,22 +68,39 @@ game:
         FILL_SCREEN DEFCOL
         mov ebx, 0
         mov [pointer], ebx
-        
-        cmp al, KEY.I
-        je .insertMode
-        jmp pressOnKey
-        
+
+        ; Enter in normal mode for first time  
+        .normalMode:
+            call putModeN
+            .normalLoop:
+                call cursor
+                call scan
+
+                cmp al, KEY.I
+                je .insertMode
+                cmp al, KEY.V
+                je .visualMode
+
+                jmp .normalLoop
+
+
         .insertMode:
             call putModeI
             .read:
                 call get_input
-                ; Main loop.
-
-                ; Here is where you will place your game logic.
-                ; Develop procedures like paint_map and update_content,
-                ; declare it extern and use here.
+                mov eax, [lastKey]
+                cmp eax , 0x10 ; Rulo tu pon KEY.Esc en ves d 0x10
+                je .normalMode
                 jmp .read
-
+        
+        .visualMode:
+            call putModeV
+            .oread:
+                call cursor
+                call scan
+                cmp ax, 0x10 ; Rulo tu pon KEY.Esc en ves d 0x10
+                je .normalMode
+                jmp .oread
 
 draw.red:
     FILL_SCREEN BG.RED
@@ -99,6 +118,7 @@ get_input:
     ;add esp, 2
     call cursor
     call scan
+    mov [lastKey], ax
     push ax
     ; The value of the input is on 'word [esp]'
 

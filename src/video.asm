@@ -84,10 +84,10 @@
 
 ; Ajusta todos los punteros
 %macro UPD_POINTER 1.nolist
-    mov eax, [pointer]
-    add eax, [viewStart]
-    cmp eax, [lastChar]
-    jg %%real_end
+    ;mov eax, [pointer]
+    ;add eax, [viewStart]
+    ;cmp eax, [lastChar]
+    ;jg %%real_end
     %%start:
         ; setea la linea actual
         mov eax, [lineCounter]
@@ -155,15 +155,26 @@ line dd 0
 lineCounter dd 0
 
 lastChar dd 0
+
 cursorColor db 0
+
 text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "t" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "d" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "M" | DEFCOL, "I" | DEFCOL
+
 raul dw "L" | DEFCOL, "a" | DEFCOL, "z" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "R" | DEFCOL, "a" | DEFCOL, "u" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "I" | DEFCOL, "g" | DEFCOL, "l" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "a" | DEFCOL, "s" | DEFCOL, " " | DEFCOL, "V" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL
+
 teno dw "M" | DEFCOL, "i" | DEFCOL, "g" | DEFCOL, "u" | DEFCOL, "e" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "T" | DEFCOL, "e" | DEFCOL, "n" | DEFCOL, "o" | DEFCOL, "r" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "o" | DEFCOL, "t" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "i" | DEFCOL
+
 finalText dw "P" | DEFCOL, "r" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "l" | DEFCOL, "q" | DEFCOL, "u" | DEFCOL, "i" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, " " | DEFCOL, "t" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "l" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "p" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "t" | DEFCOL, "i" | DEFCOL, "n" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "." | DEFCOL, "." | DEFCOL, "." | DEFCOL
+
 insert dw "-" | DEFCOL, "-" | DEFCOL, "I" | DEFCOL, "N" | DEFCOL, "S" | DEFCOL, "E" | DEFCOL, "R" | DEFCOL, "T" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
+
+visual dw "-" | DEFCOL, "-" | DEFCOL, "V" | DEFCOL, "I" | DEFCOL, "S" | DEFCOL, "U" | DEFCOL, "A" | DEFCOL, "L" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
+
+normal times 10 dw 0 | DEFCOL
 
 section .text
 
+;extern pauseCursorForASecond
 extern pauseCursor
 extern writeMode 
 
@@ -183,7 +194,7 @@ clear:
 ; hace parpadear el puntero
 global cursor
 cursor:
-    ;call pauseCursor  ; Funciona delay actual:150 si quieres descomenta esta linea pero ponle 1 ms en timing
+    ;call pauseCursor ; Funciona delay actual:150 si quieres descomenta esta linea pero ponle 1 ms en timing
     mov al, [cursorColor]
     xor al, 1
     mov [cursorColor], al
@@ -287,7 +298,18 @@ putModeI:
     OUTPUT_LINE insert, FBUFFER + 3842, 10
     ret
 
-; mueve el pointer y borra el ultimo char
+; Turn Visual mode
+global putModeV
+putModeV:
+    OUTPUT_LINE visual, FBUFFER + 3842, 10
+    ret
+
+global putModeN
+putModeN:
+    OUTPUT_LINE normal, FBUFFER + 3842, 10
+    ret
+
+; Mueve el pointer y borra el ultimo char
 global backSpace
 backSpace:
     push eax
