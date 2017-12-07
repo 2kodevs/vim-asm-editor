@@ -37,10 +37,11 @@
     add esi, [viewStart]
     mov ebx, [lineCounter]
     lodsw
+    mov word [esi - 2], 0 | DEFCOL
     add ebx, 2
     cmp ebx, 160
     jne %%move
-    mov ebx, 0
+    xor ebx, ebx
     %%move:
         cmp ax, 0 | DEFCOL
         je %%end
@@ -51,7 +52,7 @@
         add ebx, 2
         cmp ebx, 160
         jne %%move
-        mov ebx, 0
+        xor ebx, ebx
         jmp %%move
     %%check:
         cmp ebx, 0
@@ -76,6 +77,8 @@
 
 ; desplaza las letras para su izquierda
 %macro MOVE_ALL_LEFT 0.nolist
+    mov eax, [pointer]
+    add eax, [viewStart]
     cmp eax, 0
     je %%impossible
     cld
@@ -85,10 +88,6 @@
     mov edi, esi
     sub edi, 2
     mov ebx, [lineCounter]
-    add ebx, 2
-    cmp ebx, 160
-    jne %%move
-    mov ebx, 0
     %%move:
         cmp word [esi], 0 | DEFCOL
         je %%end
@@ -102,19 +101,12 @@
         jmp %%move
     %%check:
         mov ecx, 10
-        ;cmp ebx, 160
-        ;jne %%end
-        ;push eax
-        ;push esi
-        ;ADVANCE_TEXT [line]
-        ;PRINT
-        ;pop esi
-        ;pop eax
     %%end:
         movsw
+        mov word [esi - 2], 0 | DEFCOL
         cmp ecx, 10
         jne %%conti
-        cmp ebx, 2
+        cmp ebx, 0
         jne %%conti
         push eax
         push esi
@@ -123,7 +115,6 @@
         pop esi
         pop eax
         %%conti:
-        mov word [esi], 0 | DEFCOL
         sub esi, input
         cmp esi, [lastChar]
         jne %%impossible
@@ -227,28 +218,28 @@
 ; despalza todas las lineas del texto una por una hacia arriba
 %macro BACK_TEXT 1.nolist
     mov eax, [graderLine]
-    sub eax, 2
+    sub eax, 1
     cmp eax, %1
     jbe %%end
-    add eax, 2
+    add eax, 1
     mov ebx, 160
     imul ebx
-    mov ecx, eax
+    mov ecx, eax  ; ecx = graderline x 160
     mov eax, %1
-    add eax, 2
+    add eax, 1
     imul ebx
     mov ebx, ecx
     add eax, input
     add ebx, input
     mov edx, eax
-    sub edx, 160
+    add edx, 160
     %%ciclo:
         cmp eax, ebx
         je %%end
-        OUTPUT_LINE eax, edx, 80
-        OUTPUT_LINE nullLine, eax, 80
-        sub eax, 160
-        sub edx, 160
+        OUTPUT_LINE edx, eax, 80
+        OUTPUT_LINE nullLine, edx, 80
+        add eax, 160
+        add edx, 160
         jmp %%ciclo
     %%end:
 %endmacro
@@ -415,8 +406,6 @@ global backSpace
 backSpace:
     push eax
     call repairCursor
-    mov eax, [pointer]
-    add eax, [viewStart]
     mov bl, [writeMode]
     cmp bl, 1
     je .reWrite
@@ -425,9 +414,7 @@ backSpace:
     jmp .conti
     .reWrite:
     UPD_POINTER -2
-    mov bx, 0 | DEFCOL
     add eax, [viewStart]
-    mov [input + eax], bx
     .conti:
     PRINT
     pop eax
@@ -453,40 +440,17 @@ finishLine:
     mov eax, [pointer]
     add eax, [viewStart]
     push eax
-    ;mov al, [writeMode]
-    ;cmp al, 1
-    ;je .reWrite
-    ;MOVE_ALL_RIGTH
-    ;.reWrite:
-    ADVANCE_TEXT [line]
-    ;UPD_POINTER 2
-    ;pop eax
     mov edx, [line]
-    ;mov bx, 10 | DEFCOL
-    ;mov [input + eax], bx
-    ;mov eax, [pointer]
-    ;add eax, [viewStart]
-    ;push eax
-    mov ecx, 0    
     .unFinish:
-        mov eax, [pointer]
-        add eax, [viewStart]
-        push eax
+        push edx
+        MOVE_ALL_RIGTH
         UPD_POINTER 2
-        pop eax
+        pop edx
         mov eax, [line]
-        add ecx, 1
         cmp edx, eax
         je .unFinish
     pop eax
     add eax, input
-    mov ebx, input
-    add ebx, [viewStart]
-    add ebx, [pointer]
-    push ecx
-    OUTPUT_LINE eax, ebx, ecx
-    pop ecx
-    OUTPUT_LINE nullLine, eax, ecx
     mov bx, 10 | DEFCOL
     mov [eax], bx
     PRINT
