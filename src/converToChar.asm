@@ -64,6 +64,10 @@ convert2:
         mov [writeMode], bl
         mov bx, 0 | DEFCOL
         jmp .ret
+        cmp al, KEY.Esc
+        jne .not_ps
+        mov bx, 0 | DEFCOL
+        jmp .ret
         .not_ps:
         cmp al, KEY.ENTER
         jne .not_enter
