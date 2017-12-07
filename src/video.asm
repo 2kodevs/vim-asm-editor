@@ -45,7 +45,7 @@
     %%move:
         cmp ax, 0 | DEFCOL
         je %%end
-        cmp ax, 10 | DEFCOL
+        cmp ax, 255 | DEFCOL
         je %%check
         xchg ax, [esi]
         add esi, 2
@@ -91,13 +91,13 @@
     %%move:
         cmp word [esi], 0 | DEFCOL
         je %%end
-        cmp word [esi], 10 | DEFCOL
+        cmp word [esi], 255 | DEFCOL
         je %%check
         movsw
         add ebx, 2
         cmp ebx, 160
         jne %%move
-        mov ebx, 0
+        xor ebx, ebx
         jmp %%move
     %%check:
         mov ecx, 10
@@ -280,7 +280,6 @@ insert dw "-" | DEFCOL, "-" | DEFCOL, "I" | DEFCOL, "N" | DEFCOL, "S" | DEFCOL, 
 visual dw "-" | DEFCOL, "-" | DEFCOL, "V" | DEFCOL, "I" | DEFCOL, "S" | DEFCOL, "U" | DEFCOL, "A" | DEFCOL, "L" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
 
 normal times 10 dw 0 | DEFCOL
-
 ; linea vacia
 nullLine times 80 dw 0 | DEFCOL
 
@@ -402,6 +401,10 @@ start:
     OUTPUT_LINE raul, FBUFFER + 1810, 25
     OUTPUT_LINE teno, FBUFFER + 1980, 15
     OUTPUT_LINE finalText, FBUFFER + 2114, 42
+    mov edi, input
+    mov ecx, 2000000
+    mov ax, 0 | DEFCOL
+    rep stosw
     ret
 
 ; Pone el indicador de modo en -Insert-
@@ -471,70 +474,9 @@ finishLine:
         je .unFinish
     pop eax
     add eax, input
-    mov bx, 10 | DEFCOL
+    mov bx, 255 | DEFCOL
     mov [eax], bx
     PRINT
     pop ebx
     pop eax
     ret
-
-; probando
-repairEnter:
-    push eax
-    push ebx
-    mov esi, input
-    add esi, [pointer]
-    add esi, [viewStart]
-    mov ebx, [lineCounter]
-    mov edx, [line]
-    .findNextEnter:
-        lodsw
-        add ebx, 2
-        cmp ebx, 160
-        jne .conti
-        sub ebx, 160
-        inc edx
-        cmp edx, [graderLine]
-        ja .ret
-        .conti:
-        cmp ax, 10 | DEFCOL
-        jne .findNextEnter
-        cmp ebx, 0
-        je .findNextEnter
-       .check:
-           lodsw
-           add ebx, 2
-           cmp ebx, 160
-           jne .verify
-           sub ebx, 160
-           inc edx
-           cmp edx, [graderLine]
-           ja .ret
-           jmp .findNextEnter
-           .verify:
-           cmp ax, 0 | DEFCOL
-           je .check
-           push edx
-           push esi
-           push ebx
-           ADVANCE_TEXT edx
-           pop ebx
-           pop esi
-           mov ecx, 160
-           sub ecx, ebx
-           mov eax, ecx
-           shr ecx, 1
-           push ebx
-           push esi
-           sub esi, 2
-           mov edi, esi
-           add edi, eax
-           OUTPUT_LINE esi, edi, ecx
-           pop esi
-           pop ebx
-           pop edx
-           jmp .findNextEnter
-    .ret:
-        push ebx
-        push eax
-        ret
