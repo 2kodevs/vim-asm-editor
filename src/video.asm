@@ -103,7 +103,8 @@
         mov ecx, 10
     %%end:
         movsw
-        mov word [esi - 2], 0 | DEFCOL
+        sub esi, 2
+        mov word [esi], 0 | DEFCOL
         cmp ecx, 10
         jne %%conti
         cmp ebx, 0
@@ -123,10 +124,70 @@
     %%impossible:
 %endmacro
 
+; mueve el puntero hasta el siguiente caracter dado un sentido, un avance 
+%macro FORWARD 1.nolist
+    xor edx, edx
+    UPD_POINTER %1
+    cmp edx, 1
+    je %%end
+    mov edx, %1 
+    cmp edx, 2
+    jne %%conti
+    ; caso 1 : moverse hacia -->
+    mov eax, [line] 
+    inc eax
+    mov ecx, 160
+    imul ecx
+    add eax, input
+    cmp word [eax], 0 | DEFCOL
+    je %%end
+    mov edx, 160
+    sub edx, [lineCounter]
+    mov [temp], edx
+    UPD_POINTER [temp]
+    jmp %%end  
+    %%conti:             
+    ; caso 2 : moverse en cualquier otra direccion
+    mov edx, %1
+    cmp edx, 160
+    jne %%ok
+    mov eax, [line] 
+    inc eax
+    mov ecx, 160
+    imul ecx
+    add eax, input
+    cmp word [eax], 0 | DEFCOL
+    je %%end
+    %%ok:
+    mov edx, %1
+    mov eax, [pointer] 
+    add eax, [viewStart] 
+    add eax, input 
+    add eax, edx
+    %%lop:
+        cmp word [eax], 0 | DEFCOL
+        jne %%endLoop
+        add edx, -2
+        add eax, -2
+        jmp %%lop
+    %%endLoop:
+    
+    mov [temp], edx
+    UPD_POINTER [temp]
+    %%end: 
+%endmacro 
+
 ; Ajusta todos los punteros
 %macro UPD_POINTER 1.nolist
-    ;mov eax, [pointer]
-    ;add eax, [viewStart]
+    mov eax, [pointer]
+    add eax, [viewStart]
+    add eax, input
+    add eax, %1
+    cmp eax, input
+    jb %%real_end
+    cmp word [eax], 0 | DEFCOL
+    je %%real_end
+    mov edx, 1    ; para verificar si hubo movimiento
     ;cmp eax, [lastChar]
     ;jge %%real_end
     %%start:
@@ -251,6 +312,7 @@ section .data
 global input
 input times 2000000 dw 0 | DEFCOL
 
+; VARIABLES DEL MODO INSERT
 ; puntero apuntando a la inicial inicial mostrada en los BUFFERS
 global viewStart
 viewStart dd 0
@@ -259,12 +321,16 @@ viewStart dd 0
 global pointer
 pointer dd 2198
 
-
 line dd 0               ;linea actual
 graderLine dd 0         ;mayor linea alcanzada
 lineCounter dd 0        ;indicador de columna
 lastChar dd 0           ;posicion del ultimo caracter
 cursorColor db 0        ;indicador de estado del cursor
+temp dd 0
+
+; VARIABLES DEL MODO VISUAL
+posStart dd 0
+numberOfChar dd 0
 
 ; textos predefinidos
 text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "t" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "d" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "M" | DEFCOL, "I" | DEFCOL
@@ -279,15 +345,19 @@ insert dw "-" | DEFCOL, "-" | DEFCOL, "I" | DEFCOL, "N" | DEFCOL, "S" | DEFCOL, 
 
 visual dw "-" | DEFCOL, "-" | DEFCOL, "V" | DEFCOL, "I" | DEFCOL, "S" | DEFCOL, "U" | DEFCOL, "A" | DEFCOL, "L" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
 
-normal times 10 dw 0 | DEFCOL
 ; linea vacia
 nullLine times 80 dw 0 | DEFCOL
+
+; metodos
+global writeTools
+writeTools dd nonReWrite, writeScroll
 
 section .text
 
 ;extern pauseCursorForASecond
 extern pauseCursor
 extern writeMode 
+extern capsLockButton
 
 ; clear(byte char, byte attrs)
 ; Clear the screen by filling it with char and attributes.
@@ -399,12 +469,24 @@ global start
 start:
     OUTPUT_LINE text, FBUFFER + 1660, 15
     OUTPUT_LINE raul, FBUFFER + 1810, 25
-    OUTPUT_LINE teno, FBUFFER + 1980, 15
+    OUTPUT_LINE teno, FBUFFER + 1974, 22
     OUTPUT_LINE finalText, FBUFFER + 2114, 42
     mov edi, input
     mov ecx, 2000000
     mov ax, 0 | DEFCOL
+    cld
     rep stosw
+    mov eax, 0
+    mov [viewStart], eax
+    mov [line], eax
+    mov [lineCounter], eax
+    mov [lastChar], eax
+    mov [graderLine], eax
+    mov [cursorColor], eax
+    mov [writeMode], al
+    mov [capsLockButton], al
+    mov eax, input
+    mov word [eax], 255 | DEFCOL
     ret
 
 ; Pone el indicador de modo en -Insert-
@@ -421,7 +503,7 @@ putModeV:
 
 global putModeN
 putModeN:
-    OUTPUT_LINE normal, FBUFFER + 3842, 10
+    OUTPUT_LINE nullLine, FBUFFER + 3842, 10
     ret
 
 ; Mueve el pointer y borra el ultimo char
@@ -449,11 +531,25 @@ move:
     push eax
     call repairCursor
     mov eax, [pointer]
-    UPD_POINTER [esp + 8]
+    FORWARD [esp + 8]
     PRINT
     pop eax
     ret
-
+; hace delete
+global delete
+delete:
+    push eax
+    call repairCursor
+    mov edx, 0
+    UPD_POINTER 2
+    cmp edx, 0
+    je .no
+    MOVE_ALL_LEFT
+    UPD_POINTER -2
+    PRINT
+    .no:
+    pop eax
+    ret
 ;pone el enter camina el cursor hasta la siguiente fila y pone el texto correctamente 
 global finishLine
 finishLine:
@@ -480,3 +576,58 @@ finishLine:
     pop ebx
     pop eax
     ret
+
+; MODO VISUAL
+global initializeVisual
+initializeVisual:
+    mov eax, [pointer]
+    add eax, [viewStart]
+    add eax, input
+    mov [posStart], eax
+    mov eax, 0
+    mov [numberOfChar], eax
+    ret
+global setSelection
+setSelection:
+    mov eax, [numberOfChar]
+    add eax, [esp + 4]
+    mov [numberOfChar], eax
+    push dword [esp + 4]
+    call move
+    add esp, 4
+    cld
+    mov esi, input
+    add esi, [viewStart]
+    mov ecx, esi
+    add ecx, 3838
+    .paintAll:
+        lodsw
+        mov bl, al
+        mov ax, DEFCOL
+        mov al, bl
+        mov [esi - 2], ax
+        cmp esi, ecx
+        jbe .paintAll
+    mov esi, posStart
+    mov ecx, posStart
+    add ecx, [numberOfChar]
+    mov edx, -2
+    cmp esi, ecx
+    jbe .setMark
+    std
+    mov edx, 2
+    .setMark:
+        lodsw
+        mov bl, al
+        mov ax, VISUALCOL
+        mov al, bl
+        mov [esi + edx], ax
+        cmp esi, ecx
+        je .setMark
+    lodsw
+    mov bl, al
+    mov ax, VISUALCOL
+    mov al, bl
+    mov [esi + edx], ax
+    PRINT
+    ret 

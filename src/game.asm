@@ -23,6 +23,9 @@ extern pointer              ; puntero del cursor
 extern writeScroll          ; escribe al array que proporciona sensacion de scroll
 extern nonReWrite           ; no sobrescribe
 extern writeMode            ; tipo de escritura
+extern writeTools           ; array con los tipos de escritura
+extern initializeVisual
+extern visualActions
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -55,13 +58,15 @@ game:
          
         ; wait Press
         call scan
+        ;mov cl, al
         pressOnKey:
             call cursor
             call scan
             push ax
             call convert2
             pop ax
-            cmp bx, 0 | FG.GRAY | BG.BLACK
+            cmp bx, 0 | DEFCOL
+            ;cmp cl, al
             je pressOnKey
             
         ; limpia la pantalla    Este fill esta fuera de lugar, solo se necesita la primera vez
@@ -88,18 +93,20 @@ game:
             call putModeI
             .read:
                 call get_input
-                mov eax, [lastKey]
-                cmp eax , 0x10 ; Rulo tu pon KEY.Esc en ves d 0x10
+                mov al, [lastKey]
+                cmp al , KEY.Esc ; Rulo tu pon KEY.Esc en ves d 0x10
                 je .normalMode
                 jmp .read
         
         .visualMode:
             call putModeV
+            call initializeVisual
             .oread:
                 call cursor
                 call scan
-                cmp ax, 0x10 ; Rulo tu pon KEY.Esc en ves d 0x10
+                cmp al, KEY.Esc ; Rulo tu pon KEY.Esc en ves d 0x10
                 je .normalMode
+                call visualActions
                 jmp .oread
 
 draw.red:
@@ -118,7 +125,7 @@ get_input:
     ;add esp, 2
     call cursor
     call scan
-    mov [lastKey], ax
+    mov [lastKey], al
     push ax
     ; The value of the input is on 'word [esp]'
 
@@ -127,14 +134,13 @@ get_input:
     cmp bx, 0 | DEFCOL
     je no
     push bx
+    ; look at this bitch
+    xor ebx, ebx
     mov bl, [writeMode]
-    cmp bl, 1
-    je .reWrite
-    call nonReWrite
-    jmp .conti
-    .reWrite:
-    call writeScroll
-    .conti:
+    mov cl, 2
+    shl ebx, cl
+    call [writeTools + ebx]
+
     add esp, 2
     no:
     add esp, 2 ; free the stack

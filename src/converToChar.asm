@@ -26,7 +26,45 @@ extern backSpace
 extern pointer
 extern move
 extern finishLine
+extern setSelection
+extern delete
 
+global visualActions
+visualActions:
+    cmp al, KEY.LEFT
+    jne .not_left
+    mov ebx, -2
+    push ebx
+    call setSelection
+    add esp, 4
+    jmp .ret
+    .not_left:
+    cmp al, KEY.RIGHT
+    jne .not_right
+    mov ebx, 2
+    push ebx
+    call setSelection
+    add esp, 4
+    jmp .ret
+    .not_right:
+    cmp al, KEY.UP
+    jne .not_up
+    mov ebx, -160
+    push ebx
+    call setSelection
+    add esp, 4
+    jmp .ret
+    .not_up:
+    cmp al, KEY.DOWN
+    jne .not_down
+    mov ebx, 160
+    push ebx
+    call setSelection
+    add esp, 4
+    jmp .ret
+    .not_down:
+    .ret:
+    ret
 ; con inst de cadena, deja en bx el caracter
 global convert2
 convert2:
@@ -57,6 +95,12 @@ convert2:
     mov bl, al
     jmp .ret
     .noVisibleChar:
+        cmp al, KEY.numDel
+        jne .not_nd
+        call delete
+        mov bx, 0 | DEFCOL
+        jmp .ret
+        .not_nd:
         cmp al, KEY.Tab
         jne .not_ps
         mov bl, [writeMode]
@@ -64,11 +108,12 @@ convert2:
         mov [writeMode], bl
         mov bx, 0 | DEFCOL
         jmp .ret
+        .not_ps:
         cmp al, KEY.Esc
-        jne .not_ps
+        jne .not_esc
         mov bx, 0 | DEFCOL
         jmp .ret
-        .not_ps:
+        .not_esc:
         cmp al, KEY.ENTER
         jne .not_enter
         call finishLine

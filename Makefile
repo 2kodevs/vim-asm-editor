@@ -67,6 +67,9 @@ qemu-iso: $(ISO)
 clean:
 	rm -rf $(OBJ) iso *.elf *.iso
 
+build: clean qemu
+	echo Compiling Project
+
 code:
 	code src/video.mac src/keyboard.mac src/converToChar.asm src/timing.asm src/keyboard.asm src/video.asm src/game.asm
 
