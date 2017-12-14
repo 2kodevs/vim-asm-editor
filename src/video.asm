@@ -330,7 +330,9 @@ temp dd 0
 
 ; VARIABLES DEL MODO VISUAL
 posStart dd 0
-numberOfChar dd 0
+lineStart dd 0
+global mVisual
+mVisual db 0
 
 ; textos predefinidos
 text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "t" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "d" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "M" | DEFCOL, "I" | DEFCOL
@@ -584,14 +586,11 @@ initializeVisual:
     add eax, [viewStart]
     add eax, input
     mov [posStart], eax
-    mov eax, 0
-    mov [numberOfChar], eax
+    mov eax, [line]
+    mov [lineStart], eax
     ret
 global setSelection
 setSelection:
-    mov eax, [numberOfChar]
-    add eax, [esp + 4]
-    mov [numberOfChar], eax
     push dword [esp + 4]
     call move
     add esp, 4
@@ -608,26 +607,54 @@ setSelection:
         mov [esi - 2], ax
         cmp esi, ecx
         jbe .paintAll
-    mov esi, posStart
-    mov ecx, posStart
-    add ecx, [numberOfChar]
+    mov al, [mVisual]
+    cmp al, 0
+    jne .line
+    mov esi, [posStart]
+    mov ecx, [pointer]
+    add ecx, [viewStart]
+    add ecx, input
+    cmp ecx, [posStart]
+    je .fin
     mov edx, -2
+    cld
     cmp esi, ecx
-    jbe .setMark
+    jb .setMark
     std
     mov edx, 2
+    jmp .setMark
+    .line:
+        mov eax, [lineStart]
+        mov ebx, 160
+        imul ebx
+        mov esi, eax
+        mov eax, [line]
+        imul ebx
+        mov edx, [lineStart]
+        cmp edx, [line]
+        ja .grader
+        add eax, 160
+        cld
+        jmp .ready
+        .grader:
+        sub eax, 160
+        std
+        jmp .ready
+        .ready:
+        mov ecx, eax
+        add esi, input
+        add ecx, input
     .setMark:
         lodsw
+        cmp ax, 0 | DEFCOL
+        je .noPaint
         mov bl, al
         mov ax, VISUALCOL
         mov al, bl
         mov [esi + edx], ax
+        .noPaint:
         cmp esi, ecx
-        je .setMark
-    lodsw
-    mov bl, al
-    mov ax, VISUALCOL
-    mov al, bl
-    mov [esi + edx], ax
+        jne .setMark
+    .fin:
     PRINT
     ret 

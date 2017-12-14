@@ -24,8 +24,10 @@ extern writeScroll          ; escribe al array que proporciona sensacion de scro
 extern nonReWrite           ; no sobrescribe
 extern writeMode            ; tipo de escritura
 extern writeTools           ; array con los tipos de escritura
-extern initializeVisual
-extern visualActions
+extern initializeVisual     ; inicializa el modo visual
+extern visualActions        ; decide las acciones en modo visual
+extern mVisual              ; indicadar del tipo de visual
+extern capsLockButton       ; indica si fue presionada mayuscula
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -101,13 +103,16 @@ game:
         .visualMode:
             call putModeV
             call initializeVisual
-            .oread:
+            xor al, al
+            mov al, [capsLockButton]
+            mov [mVisual], al
+            .standard:
                 call cursor
                 call scan
                 cmp al, KEY.Esc ; Rulo tu pon KEY.Esc en ves d 0x10
                 je .normalMode
                 call visualActions
-                jmp .oread
+                jmp .standard
 
 draw.red:
     FILL_SCREEN BG.RED
