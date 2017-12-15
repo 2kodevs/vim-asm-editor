@@ -87,6 +87,7 @@
     add esi, eax
     mov edi, esi
     sub edi, 2
+    push word [edi]
     mov ebx, [lineCounter]
     %%move:
         cmp word [esi], 0 | DEFCOL
@@ -118,9 +119,14 @@
         %%conti:
         sub esi, input
         cmp esi, [lastChar]
-        jne %%impossible
+        jne %%fin
         sub esi, 2
         mov [lastChar], esi
+    %%fin:
+        pop ax
+        cmp ax, 0 | DEFCOL
+        jne %%impossible
+        mov edx, 1
     %%impossible:
 %endmacro
 
@@ -347,13 +353,16 @@ cursorColor db 0        ;indicador de estado del cursor
 temp dd 0
 
 ; VARIABLES DEL MODO VISUAL
-posStart dd 0
-lineStart dd 0
+posStart dd 0           ; guarda la posicion en que se entro a modo visual
+lineStart dd 0          ; guarda la linea en que se entro a modo visual
+
 global mVisual
-mVisual db 0
-inicio dd 0
-len dd 0
-realLen dd 0
+mVisual db 0            ; guarda el tipo de modo visual
+
+copieMode db 0          ; guarda el tipo de modo visual en que se realizo la copia
+inicio dd 0             ; guarda el inicio del texto seleccionado
+len dd 0                ; guarda la cantidad de letras del texto seleccionado
+realLen dd 0            ; guarda la cantidad de letras del texto copiado
 
 ; textos predefinidos
 text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "t" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "d" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "M" | DEFCOL, "I" | DEFCOL
@@ -535,16 +544,14 @@ global backSpace
 backSpace:
     push eax
     call repairCursor
-    mov bl, [writeMode]
-    cmp bl, 1
-    je .reWrite
+    .repeat:
+    xor edx, edx
     MOVE_ALL_LEFT
+    push edx
     UPD_POINTER -2
-    jmp .conti
-    .reWrite:
-    UPD_POINTER -2
-    add eax, [viewStart]
-    .conti:
+    pop edx
+    cmp edx, 1
+    je .repeat
     PRINT
     pop eax
     ret
@@ -571,7 +578,19 @@ delete:
     MOVE_ALL_LEFT
     UPD_POINTER -2
     PRINT
+    jmp .ok
     .no:
+    mov eax, [pointer]
+    add eax, [viewStart]
+    add eax, input
+    cmp word [eax], 255 | DEFCOL
+    jne .ok
+    mov ecx, 160
+    sub ecx, [lineCounter]
+    mov [temp], ecx
+    UPD_POINTER [temp]
+    call backSpace
+    .ok:
     pop eax
     ret
 ;pone el enter camina el cursor hasta la siguiente fila y pone el texto correctamente 
@@ -628,6 +647,7 @@ global setSelection
 setSelection:
     ; limpia los cambios de coloracion
     SCREEN_COLOR
+    cld
     push dword [esp + 4]
     call move
     add esp, 4
@@ -642,13 +662,10 @@ setSelection:
     add ecx, input
     cmp ecx, [posStart]  ; posicion del cursor
     je .fin
-    mov edx, -2   
-    cld
     cmp esi, ecx
     jb .setMark
-    std
-    mov [inicio], ecx
-    mov edx, 2
+    xchg ecx, esi
+    mov [inicio], esi
     jmp .setMark
     .line:
         mov eax, [lineStart]
@@ -658,26 +675,16 @@ setSelection:
         mov eax, [line]
         imul ebx
         mov edx, [lineStart]    ; linea final
-        cmp edx, [line]         
-        ja .grader
-        add eax, 160            ; desplazar hasta el fin de la linea (la final)
-        mov [inicio], esi
-        cld
-        mov edx, -2
-        jmp .ready
-        .grader:
-        add esi, 158            ; desplazar hasta el fin de la linea (la inicial)
-        mov [inicio], eax
-        sub eax, 2              ; quitando el ultimo caracter de la linea
-        std
-        mov edx, 2
-        jmp .ready
+        cmp edx, [line]
+        jbe .ready         
+        xchg esi, eax
         .ready:
+        add eax, 158
         mov ecx, eax
         add esi, input
         add ecx, input
-        mov edi, input
         xor ebx, ebx
+        mov [inicio], esi
     .setMark:
         push ebx
         lodsw
@@ -686,12 +693,12 @@ setSelection:
         mov bl, al
         mov ax, VISUALCOL
         mov al, bl
-        mov [esi + edx], ax
+        mov [esi - 2], ax
         .noPaint:
         pop ebx
         inc ebx
         cmp esi, ecx
-        jne .setMark
+        jbe .setMark
     .fin:
     mov [len], ebx
     ; ajustar el color del cursor
@@ -709,33 +716,44 @@ setSelection:
 ; guarda el texto seleccionado
 global yank
 yank:
-    xor ebx, ebx
+    mov cl, [mVisual]
+    mov [copieMode], cl
     mov ecx, [len]
-    mov bl, [mVisual]
-    xor bl, 1
-    add ecx, ebx
     mov [realLen], ecx
     SCREEN_COLOR
     OUTPUT_LINE [inicio], trash, [realLen]
     ret
+
 ; copie el texto guardado anteriormente
 global paste
 paste:
-    mov al, [mVisual]
+    UPD_POINTER 2
+    mov al, [copieMode]
     cmp al, 0
     je .conti
-    call finishLine
+    mov eax, [line]
+    inc eax
+    mov [temp], eax
+    ADVANCE_TEXT [temp]
+    mov ecx, 160
+    sub ecx, [lineCounter]
+    mov [temp], ecx
+    UPD_POINTER [temp]
     .conti:
+    push dword [pointer]
+    push dword [viewStart]
+    push dword [line]
+    push dword [lineCounter]
     mov ecx, [realLen]
     cld
     mov esi, trash
-    .lop:
+    .copieText:
         cmp ecx, 0
-        je .copieText
+        je .end
         dec ecx
         lodsw
         cmp ax, 0 | DEFCOL
-        je .lop
+        je .copieText
         push esi
         push ecx
         cmp ax, 255 | DEFCOL
@@ -753,6 +771,18 @@ paste:
         .pops:
         pop ecx
         pop esi
-        jmp .lop
-    .copieText:
+        jmp .copieText
+    .end:
+    mov al, [copieMode]
+    cmp al, 0
+    je .conti2
+    mov eax, [line]
+    inc eax
+    mov [temp], eax
+    ADVANCE_TEXT [temp] 
+    .conti2:
+    pop dword [lineCounter]
+    pop dword [line]
+    pop dword [viewStart]
+    pop dword [pointer]   
     ret
