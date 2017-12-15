@@ -26,8 +26,10 @@ extern writeMode            ; tipo de escritura
 extern writeTools           ; array con los tipos de escritura
 extern initializeVisual     ; inicializa el modo visual
 extern visualActions        ; decide las acciones en modo visual
+extern normalActions        ; decide las acciones en modo normal
 extern mVisual              ; indicadar del tipo de visual
 extern capsLockButton       ; indica si fue presionada mayuscula
+extern restoreScreen
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -78,11 +80,12 @@ game:
 
         ; Enter in normal mode for first time  
         .normalMode:
+            call restoreScreen
             call putModeN
             .normalLoop:
                 call cursor
                 call scan
-
+                call normalActions
                 cmp al, KEY.I
                 je .insertMode
                 cmp al, KEY.V
@@ -102,10 +105,10 @@ game:
         
         .visualMode:
             call putModeV
-            call initializeVisual
             xor al, al
             mov al, [capsLockButton]
             mov [mVisual], al
+            call initializeVisual
             .standard:
                 call cursor
                 call scan

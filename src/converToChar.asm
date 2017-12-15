@@ -28,7 +28,53 @@ extern move
 extern finishLine
 extern setSelection
 extern delete
+extern mVisual
+extern paste
+extern yank
 
+; toma decisiones en modo normal
+global normalActions
+normalActions:
+    cmp al, KEY.LEFT
+    jne .not_left
+    mov ebx, -2
+    push ebx
+    call move
+    add esp, 4
+    jmp .ret
+    .not_left:
+    cmp al, KEY.RIGHT
+    jne .not_right
+    mov ebx, 2
+    push ebx
+    call move
+    add esp, 4
+    jmp .ret
+    .not_right:
+    cmp al, KEY.UP
+    jne .not_up
+    mov ebx, -160
+    push ebx
+    call move
+    add esp, 4
+    jmp .ret
+    .not_up:
+    cmp al, KEY.DOWN
+    jne .not_down
+    mov ebx, 160
+    push ebx
+    call move
+    add esp, 4
+    jmp .ret
+    .not_down:
+    cmp al, KEY.P
+    jne .not_p
+    call paste
+    jmp .ret
+    .not_p:
+    .ret:
+    ret
+; toma decisiones en modo visual
 global visualActions
 visualActions:
     cmp al, KEY.LEFT
@@ -63,6 +109,25 @@ visualActions:
     add esp, 4
     jmp .ret
     .not_down:
+    cmp al, KEY.CapsLock
+    jne .not_capslock
+    mov bl, [capsLockButton]
+    xor bl, 1
+    mov [capsLockButton], bl
+    mov bl, [mVisual]
+    xor bl, 1
+    mov [mVisual], bl
+    xor ebx, ebx
+    push ebx
+    call setSelection
+    add esp, 4
+    jmp .ret
+    .not_capslock:
+    cmp al, KEY.Y
+    jne .not_y
+    call yank
+    jmp .ret
+    .not_y:
     .ret:
     ret
 ; con inst de cadena, deja en bx el caracter

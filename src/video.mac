@@ -13,6 +13,7 @@
 %define FG.YELLOW  6 << 8
 %define FG.GRAY    7 << 8
 %define FG.BRIGHT  8 << 8
+%define FG.WHITE  FG.GRAY | FG.BRIGHT
 
 %define BG.BLACK   0 << 12
 %define BG.BLUE    1 << 12
@@ -24,7 +25,7 @@
 %define BG.GRAY    7 << 12
 %define BG.BRIGHT  8 << 12
 
-%define DEFCOL FG.GRAY | BG.BLACK | FG.BRIGHT
-%define VISUALCOL FG.GRAY | BG.GREEN 
+%define DEFCOL FG.WHITE | BG.BLACK
+%define VISUALCOL FG.WHITE | BG.GRAY 
 
 %endif ; VIDEO_MAC
