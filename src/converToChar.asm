@@ -51,7 +51,6 @@ normalActions:
     call move
     add esp, 4
     jmp .ret
-    .not_left:
     cmp al, KEY.RIGHT
     jne .not_right
     mov ebx, 2

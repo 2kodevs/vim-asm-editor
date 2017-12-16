@@ -25,7 +25,7 @@
 %define BG.GRAY    7 << 12
 %define BG.BRIGHT  8 << 12
 
-%define DEFCOL FG.WHITE | BG.BLACK 
+%define DEFCOL FG.WHITE | BG.BLACK
 %define VISUALCOL FG.WHITE | BG.GRAY 
 
 %endif ; VIDEO_MAC
