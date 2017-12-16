@@ -731,13 +731,16 @@ paste:
     mov al, [copieMode]
     cmp al, 0
     je .conti
+    ADVANCE_TEXT [line]
     mov eax, [line]
     inc eax
-    mov [temp], eax
-    ADVANCE_TEXT [temp]
-    mov ecx, 160
-    sub ecx, [lineCounter]
-    mov [temp], ecx
+    mov ebx, 160
+    xor edx, edx
+    imul ebx
+    sub ebx, [lineCounter]
+    add eax, input
+    mov word [eax], 255 | DEFCOL
+    mov [temp], ebx
     UPD_POINTER [temp]
     .conti:
     push dword [pointer]
@@ -773,16 +776,26 @@ paste:
         pop esi
         jmp .copieText
     .end:
-    mov al, [copieMode]
-    cmp al, 0
-    je .conti2
-    mov eax, [line]
-    inc eax
-    mov [temp], eax
-    ADVANCE_TEXT [temp] 
-    .conti2:
     pop dword [lineCounter]
     pop dword [line]
     pop dword [viewStart]
     pop dword [pointer]   
+    mov al, [copieMode]
+    cmp al, 0
+    je .conti2
+    mov eax, [pointer]
+    add eax, [viewStart]
+    add eax, input
+    sub eax, 160
+    mov ebx, -2
+    .for:
+    add ebx, 2
+    cmp ebx, 160
+    je .conti2
+    cmp word [eax], 255 | DEFCOL
+    je .conti2
+    cmp word [eax], 0 | DEFCOL
+    jne .for
+    mov word [eax], 255 | DEFCOL
+    .conti2:
     ret

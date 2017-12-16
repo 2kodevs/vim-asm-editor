@@ -31,6 +31,7 @@ extern delete
 extern mVisual
 extern paste
 extern yank
+extern a
 
 ; toma decisiones en modo normal
 global normalActions
