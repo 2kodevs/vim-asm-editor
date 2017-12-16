@@ -28,6 +28,11 @@ extern initializeVisual     ; inicializa el modo visual
 extern visualActions        ; decide las acciones en modo visual
 extern mVisual              ; indicadar del tipo de visual
 extern capsLockButton       ; indica si fue presionada mayuscula
+extern restoreScreen
+extern normalActions
+extern reboot
+extern shift
+extern control
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -64,12 +69,18 @@ game:
         pressOnKey:
             call cursor
             call scan
-            push ax
-            call convert2
-            pop ax
-            cmp bx, 0 | DEFCOL
-            ;cmp cl, al
-            je pressOnKey
+
+            ;cmp al, 0xA6
+            ;jbe .check
+            ;jmp pressOnKey
+            ;.check:
+            ;cmp al, 0x00
+            ;ja break
+
+            cmp al, KEY.ENTER
+            je break
+            jmp pressOnKey
+        break:
             
         ; limpia la pantalla    Este fill esta fuera de lugar, solo se necesita la primera vez
         FILL_SCREEN DEFCOL
@@ -78,16 +89,38 @@ game:
 
         ; Enter in normal mode for first time  
         .normalMode:
+            call restoreScreen
             call putModeN
             .normalLoop:
                 call cursor
+                ;call pauseCursor
                 call scan
 
+                ;cmp al, 0xA6
+                ;jbe .check
+                ;jmp .break
+                ;.check:
+                ;cmp al, 0x00
+                ;ja .break
+                ;call pauseCursor
+                ;.break:
+
+                call normalActions
                 cmp al, KEY.I
                 je .insertMode
                 cmp al, KEY.V
                 je .visualMode
-
+                cmp al, KEY.C
+                jne .not_C
+                push ax
+                mov al, [control]
+                cmp al, 1
+                jne .not_C
+                pop ax
+                call reboot
+                jmp game
+                .not_C:
+                pop ax
                 jmp .normalLoop
 
 
@@ -102,10 +135,14 @@ game:
         
         .visualMode:
             call putModeV
-            call initializeVisual
             xor al, al
-            mov al, [capsLockButton]
+            mov al, [capsLockButton] ; comprobar si la mayuscula esta presionada
+            cmp al, 1                ; .  
+            je .next                 ; .  
+            mov al, [shift]          ; .  
+            .next:
             mov [mVisual], al
+            call initializeVisual
             .standard:
                 call cursor
                 call scan
@@ -150,3 +187,5 @@ get_input:
     no:
     add esp, 2 ; free the stack
     ret
+
+    

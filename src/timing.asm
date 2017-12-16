@@ -34,6 +34,9 @@ timerD resd 1
 
 section .text
 
+extern scan
+extern convert2
+
 ; rtcs()
 ; Return the second value of the real-time-clock. Note that the value may or
 ; may not be represented such that formatting it as hex displays the correct
@@ -263,6 +266,15 @@ pauseCursorForASecond:
 
 global pauseCursor
 pauseCursor:
+    call scan
+    cmp al, 0xA6
+    jbe .check
+    jmp .continue
+    .check:
+    cmp al, 0x00
+    ja .break
+    .continue:
+
     call tps
     rdtsc
 
@@ -281,7 +293,8 @@ pauseCursor:
 
     xor eax, eax
     xor edx, edx
-    call delayCursor   
+    call delayCursor
+    .break:   
     ret
     
 ; Return if al least edi:esi milliseconds have elapsed since the first call
@@ -301,3 +314,4 @@ delayCursor:
     xor eax, eax
     xor edi, edi
     ret     
+ 

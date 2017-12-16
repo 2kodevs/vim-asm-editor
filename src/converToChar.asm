@@ -3,10 +3,13 @@
 
 ; cambia a letra Mayuscula
 %macro TO_UPPER 0.nolist
-    cmp byte [capsLockButton], 0
+    cmp byte [capsLockButton], 1
     je %%next
-    add bh, 32
+    cmp byte [shift], 0
+    je %%end
     %%next:
+    add bh, 32
+    %%end:
 %endmacro
 section .data
 
@@ -16,6 +19,12 @@ keys db KEY.Aprox, KEY.1, KEY.2, KEY.3, KEY.4, KEY.5, KEY.6, KEY.7, KEY.8, KEY.9
 
 global capsLockButton
 capsLockButton db 0
+
+global shift
+shift db 0
+
+global control
+control db 0
 
 global writeMode
 writeMode db 0
@@ -28,7 +37,52 @@ extern move
 extern finishLine
 extern setSelection
 extern delete
+extern mVisual
+extern paste
+extern yank
 
+; toma decisiones en modo normal
+global normalActions
+normalActions:
+    cmp al, KEY.LEFT
+    jne .not_left
+    mov ebx, -2
+    push ebx
+    call move
+    add esp, 4
+    jmp .ret
+    .not_left:
+    cmp al, KEY.RIGHT
+    jne .not_right
+    mov ebx, 2
+    push ebx
+    call move
+    add esp, 4
+    jmp .ret
+    .not_right:
+    cmp al, KEY.UP
+    jne .not_up
+    mov ebx, -160
+    push ebx
+    call move
+    add esp, 4
+    jmp .ret
+    .not_up:
+    cmp al, KEY.DOWN
+    jne .not_down
+    mov ebx, 160
+    push ebx
+    call move
+    add esp, 4
+    jmp .ret
+    .not_down:
+    cmp al, KEY.P
+    jne .not_p
+    call paste
+    .not_p
+    .ret:
+    ret
+; toma decisiones en modo visual
 global visualActions
 visualActions:
     cmp al, KEY.LEFT
@@ -63,6 +117,24 @@ visualActions:
     add esp, 4
     jmp .ret
     .not_down:
+    cmp al, KEY.CapsLock
+    jne .not_capslock
+    mov bl, [capsLockButton]
+    xor bl, 1
+    mov [capsLockButton], bl
+    mov bl, [mVisual]
+    xor bl, 1
+    mov [mVisual], bl
+    xor ebx, ebx
+    push ebx
+    call setSelection
+    add esp, 4
+    jmp .ret
+    .not_capslock:
+    cmp al, KEY.Y
+    jne .not_y
+    call yank
+    .not_y:
     .ret:
     ret
 ; con inst de cadena, deja en bx el caracter
@@ -83,6 +155,9 @@ convert2:
     inc bl
     mov cl, bl ; porque bl contiene las repeticiones
     mov dl, [capsLockButton] 
+    cmp dl, 1
+    je .up
+    mov dl, [shift]
     cmp dl, 1
     je .up
     mov esi, characters

@@ -1,4 +1,4 @@
-%include "video.mac"
+        %include "video.mac"
 
 ; Frame buffer location
 %define FBUFFER 0xB8000
@@ -276,7 +276,7 @@
     %%end:
 %endmacro
 
-; despalza todas las lineas del texto una por una hacia arriba
+; desplaza todas las lineas del texto una por una hacia arriba
 %macro BACK_TEXT 1.nolist
     mov eax, [graderLine]
     sub eax, 1
@@ -305,12 +305,32 @@
     %%end:
 %endmacro
 
+; Pone el color default en todo el screen
+%macro SCREEN_COLOR 0.nolist
+    cld
+    mov esi, input
+    add esi, [viewStart]
+    mov ecx, esi
+    add ecx, 3838
+    .paintAll:
+        lodsw
+        mov bl, al
+        mov ax, DEFCOL
+        mov al, bl
+        mov [esi - 2], ax
+        cmp esi, ecx
+        jbe .paintAll
+%endmacro
+
 
 section .data
 
 ; array donde se guarda la entrada
 global input
 input times 2000000 dw 0 | DEFCOL
+
+; PORTAPAPELES
+trash times 2000000 dw 0 | DEFCOL
 
 ; VARIABLES DEL MODO INSERT
 ; puntero apuntando a la inicial inicial mostrada en los BUFFERS
@@ -333,6 +353,9 @@ posStart dd 0
 lineStart dd 0
 global mVisual
 mVisual db 0
+inicio dd 0
+len dd 0
+realLen dd 0
 
 ; textos predefinidos
 text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "t" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "d" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "M" | DEFCOL, "I" | DEFCOL
@@ -360,6 +383,8 @@ section .text
 extern pauseCursor
 extern writeMode 
 extern capsLockButton
+extern shift
+extern control
 
 ; clear(byte char, byte attrs)
 ; Clear the screen by filling it with char and attributes.
@@ -484,7 +509,7 @@ start:
     mov [lineCounter], eax
     mov [lastChar], eax
     mov [graderLine], eax
-    mov [cursorColor], eax
+    mov [cursorColor], al
     mov [writeMode], al
     mov [capsLockButton], al
     mov eax, input
@@ -588,57 +613,79 @@ initializeVisual:
     mov [posStart], eax
     mov eax, [line]
     mov [lineStart], eax
+    xor eax, eax
+    push eax
+    call setSelection
+    add esp, 4
     ret
+
+; Para cuando salga del visual
+global restoreScreen
+restoreScreen:
+    SCREEN_COLOR
+    PRINT
+    ret
+
+; pinta la seleccion
 global setSelection
 setSelection:
+    ; limpia los cambios de coloracion
+    SCREEN_COLOR
     push dword [esp + 4]
     call move
     add esp, 4
-    cld
-    mov esi, input
-    add esi, [viewStart]
-    mov ecx, esi
-    add ecx, 3838
-    .paintAll:
-        lodsw
-        mov bl, al
-        mov ax, DEFCOL
-        mov al, bl
-        mov [esi - 2], ax
-        cmp esi, ecx
-        jbe .paintAll
+    ; verifica el modo
     mov al, [mVisual]
     cmp al, 0
     jne .line
-    mov esi, [posStart]
+    mov esi, [posStart] ; posicion inicial
+    mov [inicio], esi
     mov ecx, [pointer]
     add ecx, [viewStart]
     add ecx, input
-    cmp ecx, [posStart]
+    sub esi, ecx
+    mov [len], esi
+    add esi, ecx
+    cmp ecx, [posStart] ; posicion del cursor
     je .fin
-    mov edx, -2
+    mov edx, -2 
     cld
     cmp esi, ecx
     jb .setMark
     std
+    mov [inicio], ecx
+    sub ecx, esi
+    mov [len], ecx
+    add ecx, esi
     mov edx, 2
     jmp .setMark
     .line:
         mov eax, [lineStart]
         mov ebx, 160
         imul ebx
-        mov esi, eax
+        mov esi, eax            ; linea inicial
         mov eax, [line]
         imul ebx
-        mov edx, [lineStart]
-        cmp edx, [line]
+        mov edx, [lineStart]    ; linea final
+        cmp edx, [line]     
         ja .grader
-        add eax, 160
+        add eax, 160            ; desplazar hasta el fin de la linea (la final)
+        mov [inicio], esi
+        sub eax, esi
+        mov [len], eax
+        add eax, esi
         cld
+        mov edx, -2
         jmp .ready
         .grader:
-        sub eax, 160
+        add esi, 158            ; desplazar hasta el fin de la linea (la inicial)
+        mov [inicio], eax
+        sub esi, eax
+        mov [len], esi
+        add esi, eax
+        sub eax, 2              ; quitando el ultimo caracter de la linea
         std
+        mov edx, 2
         jmp .ready
         .ready:
         mov ecx, eax
@@ -656,5 +703,67 @@ setSelection:
         cmp esi, ecx
         jne .setMark
     .fin:
+    ; ajustar el color del cursor
+    mov eax, [pointer]
+    add eax, [viewStart]
+    add eax, input
+    mov bx, [eax]
+    mov cl, bl
+    mov bx, DEFCOL
+    mov bl, cl
+    mov [eax], bx
+    mov edi, eax      ; guarda en edi donde se quedo el cursor
     PRINT
     ret 
+
+; Copia el texto seleccionado
+global yank
+yank:
+    mov ecx, [len]
+    mov [realLen], ecx
+    add esp, 2
+    ret
+    OUTPUT_LINE [inicio], trash, [len]
+    ret
+; Pega el texto seleccionado
+global paste
+paste:
+    mov ecx, [realLen]
+    .lop:
+        cmp ecx, 0
+        je .copieText
+        dec ecx
+        push ecx
+        MOVE_ALL_RIGTH
+        pop ecx
+        jmp .lop
+    .copieText:
+    OUTPUT_LINE [inicio], trash, [realLen]
+    ret
+
+; Reinicia el programa
+global reboot
+reboot:
+    xor eax, eax
+    mov [temp], eax
+    mov [posStart], eax
+    mov [lineStart], eax
+    mov [mVisual], al
+    mov [inicio], eax
+    mov [len], eax
+    mov [realLen], eax
+
+    mov [line] , eax
+    mov [graderLine], eax
+    mov [lineCounter], eax
+    mov [lastChar], eax
+    mov [cursorColor], al
+    
+    mov [shift], al
+    mov [control], al
+
+    mov eax, 2198
+    mov [pointer], eax
+
+    ret
+
