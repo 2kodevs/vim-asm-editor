@@ -125,11 +125,8 @@ game:
         
         .visualMode:
             call putModeV
-            xor al, al
             mov al, [capsLockButton] ; comprobar si la mayuscula esta presionada
-            cmp al, 1                ; .  
-            je .next                 ; .  
-            mov al, [shift]          ; .  
+            xor al, [shift]   
             .next:
             mov [mVisual], al
             call initializeVisual

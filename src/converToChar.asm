@@ -40,6 +40,7 @@ extern delete
 extern mVisual
 extern paste
 extern yank
+extern cYank
 
 ; toma decisiones en modo normal
 global normalActions
@@ -51,6 +52,7 @@ normalActions:
     call move
     add esp, 4
     jmp .ret
+    .not_left:
     cmp al, KEY.RIGHT
     jne .not_right
     mov ebx, 2
@@ -78,7 +80,7 @@ normalActions:
     cmp al, KEY.P
     jne .not_p
     call paste
-    .not_p
+    .not_p:
     .ret:
     ret
 ; toma decisiones en modo visual
@@ -142,6 +144,15 @@ convert2:
     push ax
     xor ebx, ebx
     mov ax, [esp + 6]
+    cmp ax, KEY.Y
+    jne .continue
+    mov bx, 1
+    cmp bx, [control]
+    jne .continue
+    call cYank
+    mov bx, 0 | DEFCOL
+    jmp .ret
+    .continue:  
     mov edi, keys
     mov cl, 48
     cld
@@ -154,10 +165,9 @@ convert2:
     inc bl
     mov cl, bl ; porque bl contiene las repeticiones
     mov dl, [capsLockButton] 
-    cmp dl, 1
-    je .up
-    mov dl, [shift]
-    cmp dl, 1
+    mov bl, [shift]
+    xor bl, dl
+    cmp bl , 1
     je .up
     mov esi, characters
     jmp .conti

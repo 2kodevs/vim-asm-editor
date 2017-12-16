@@ -803,6 +803,7 @@ paste:
     mov word [eax], 255 | DEFCOL
     .conti2:
     ret
+
 ; Reinicia el programa
 global reboot
 reboot:
@@ -818,4 +819,27 @@ reboot:
     mov [control], al
     mov eax, 2198
     mov [pointer], eax
+    ret
+
+; Ctrl + y
+global cYank
+cYank:
+    push eax
+    xor eax, eax
+    cmp [line], eax
+    je .fin
+    mov eax, [viewStart]
+    add eax, [pointer]
+    add eax, input
+    sub eax, 160
+    mov bx, [eax]
+    cmp bx, 0 | DEFCOL
+    je .fin
+    cmp bx, 255 | DEFCOL
+    je .fin
+    push bx
+    call nonReWrite
+    pop bx
+    .fin:
+    pop eax
     ret
