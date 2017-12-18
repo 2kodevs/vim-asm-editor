@@ -328,6 +328,56 @@
         jbe .paintAll
 %endmacro
 
+; deja en ecx el length de una cadena
+; param ip of string
+%macro LENGTHOF 1.nolist
+push esi
+push eax
+xor ecx, ecx
+mov esi, %1
+repnz lodsw
+dec ecx
+pop eax
+pop esi
+%endmacro
+
+; deja en inputLen el length del input y en edx la cantidad
+; de lineas que ha leido
+%macro CANTOFCHAR 0.nolist
+push esi
+push eax
+push ebx
+xor ecx, ecx
+;mov esi, [viewStart]
+mov esi, input
+xor ebx, ebx
+xor edx, edx
+cld
+%%while:
+lodsw
+add bx, 2
+cmp ax, 0 | DEFCOL
+jne %%continue
+cmp bx, 160
+je %%update
+add esi, 160
+sub esi, ebx
+%%update:
+inc edx
+mov bx, [esi]
+cmp bx, 0 | DEFCOL
+je %%end
+xor bx, bx
+jmp %%while
+%%continue:
+add ecx, 2
+jmp %%while
+%%end:
+mov dword [inputLen], ecx
+pop ebx
+pop eax
+pop esi
+%endmacro
 
 section .data
 
@@ -337,6 +387,9 @@ input times 2000000 dw 0 | DEFCOL
 
 ; portapeles
 trash times 2000000 dw 0
+
+; array donde se guarda pi
+pi times 2000000 dw 0
 
 ; VARIABLES DEL MODO INSERT
 ; puntero apuntando a la inicial inicial mostrada en los BUFFERS
@@ -386,6 +439,12 @@ nullLine times 80 dw 0 | DEFCOL
 global writeTools
 writeTools dd nonReWrite, writeScroll
 
+; variables del KMP
+paternLen dd 0
+inputLen dd 0
+tempKMP dw 0
+
+
 section .text
 
 ;extern pauseCursorForASecond
@@ -394,6 +453,7 @@ extern writeMode
 extern capsLockButton
 extern shift
 extern control
+extern readNumber
 
 ; clear(byte char, byte attrs)
 ; Clear the screen by filling it with char and attributes.
@@ -843,3 +903,181 @@ cYank:
     .fin:
     pop eax
     ret
+
+; move to the top of the screen
+global jumpTop
+jumpTop:
+    push eax
+    xor eax, eax
+    mov [pointer], eax
+    mov [viewStart], eax
+    mov [lineCounter], eax
+    mov [line], eax
+    PRINT
+    pop eax
+    ret   
+
+
+; move to a specific line of the screen
+global jumpAt
+jumpAt:
+    call supportJump
+    mov eax, [line]
+    cmp eax, [esp + 4]
+    je .end
+    jb .less
+    .grader:
+    UPD_POINTER -160
+    mov edx, [line]
+    cmp edx, [esp + 4]
+    je .end
+    jmp .grader
+    .less:
+        xor edx, edx
+        UPD_POINTER 160
+        cmp edx, 0
+        je .end
+        mov edx, [line]
+        cmp edx, [esp + 4]
+        je .end
+        jmp .less
+    .end:
+    PRINT
+    ret 4
+
+supportJump:
+    cmp dword [lineCounter], 0
+    je .ret
+    UPD_POINTER -2
+    jmp supportJump
+    .ret:
+    ret
+   
+
+; move to the bottom of the screen
+global jumpBot
+jumpBot:
+   call supportJump
+   xor edx, edx
+   UPD_POINTER 160
+   cmp edx, 0
+   jne jumpBot
+   PRINT
+   ret
+
+
+; move to a specific line of the screen
+global jumpLine
+jumpLine:
+    ;push edx
+   ; CANTOFCHAR
+    ;push eax
+    ;push ebx
+    ;mov ebx, edx   
+    ;mov edx, [readNumber]
+    ;cmp edx, ebx
+    ;jna .not_exceded
+   ; call jumpBot
+    ;jmp .ret
+   ; .not_exceded:   
+   ; xor edx, edx
+   ; mov [lineCounter], edx
+   ; mov ebx, [readNumber]
+   ; mov eax, 160
+   ; imul ebx
+   ; mov [line], ebx
+   ; sub eax, 3840
+   ; mov [viewStart], eax
+   ; mov eax, 160
+   ; mov ebx, [readNumber]
+   ; imul ebx
+   ; .ret:
+   ; ret
+
+; compute prefix function for KMP
+prefixFunction:
+    push ebp
+    mov ebp, esp
+    LENGTHOF [esp + 8]
+    mov [paternLen], ecx
+    push bx
+    push esi
+    push edi
+    mov esi, [esp + 8] ; a
+    mov edi, pi
+    mov bx, -1 ; k
+    .for:
+        .while:
+            cmp bx, -1  ; k > -1
+            jna .continue
+            mov ax, [esi]   ; a[k + 1] != a[i]
+            add ax, bx
+            inc ax
+            cmp ax, [esi + ecx]     
+            je .continue
+            add bx, [pi] ; k = pi[k]
+            jmp .while
+        .continue:
+        inc bx ; k++
+        mov [pi + ecx], bx
+        dec ecx
+        cmp ecx, 0
+        je .ret
+        jmp .for
+    .ret:
+    pop edi
+    pop esi
+    pop bx
+    pop ebp
+    ret
+
+; we all know what this do
+;[esp + 4] ip string patern
+global KMP
+KMP:
+    push word [esp + 4]
+    call prefixFunction
+    push esi
+    mov esi, [esp + 4]
+    push eax
+    push ebx
+    push edx
+   ; mov edx, [paternLen]
+    CANTOFCHAR   ; inputLen = input.Length
+    xor ebx, ebx
+    mov bx, -1   ; k 
+    xor ecx, ecx
+    .for:
+        .while:
+           cmp bx, -1   ; k > -1
+           jna .continue
+           mov ax, [esi]
+           add ax, bx
+           inc ax
+           mov dx, ax
+           mov eax, [viewStart]
+           add eax, input
+           add eax, ecx
+           cmp word [eax], dx  ; p[k + 1] != t[i]
+           je .continue
+           add bx, [pi] ; k = pi[k]
+           jmp .while
+        .continue:
+        inc bx
+        cmp ebx, [paternLen]
+        jne .continue2
+        add bx, [pi] ; k = pi[k]
+        ;Action
+        ;
+        ;
+        .continue2:
+        inc ecx
+        cmp ecx, [inputLen]
+        jb .for
+    pop edx
+    pop ebx
+    pop eax
+    pop esi
+    ret
+
+    
