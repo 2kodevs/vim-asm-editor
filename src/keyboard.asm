@@ -9,19 +9,21 @@ section .text
 
 extern shift
 extern control
+extern cursor
 
 ; scan()
 ; Scan for new keypress. Returns new scancode if changed since last call
 global scan
 scan:
   ; Scan.
-  ;in al, 0x64
-  ;test al, 1
-  ;jz scan
-  ;in al, 0x64
-  ;test al, 32
-  ;jnz scan
-
+  ;.check:
+      in al, 0x64
+      test al, 1
+      jz scan
+  ;    in al, 0x64
+  ;    test al, 32
+  ;    jnz .climb
+  
   in al, 0x60
 
   cmp al, KEY.LeftSHF
@@ -51,7 +53,7 @@ controlOn:
   jmp continue
 shiftOff:
   xor ebx, ebx
-  mov [shift], ebx
+  mov [shift], bl
   jmp continue
 controlOff:
   xor ebx, ebx
@@ -63,6 +65,13 @@ continue:
   cmp al, [key]
   je .release
   mov [key], al
+  cmp al, 0xA6
+  ja .zero
+  cmp al, 0x00
+  je .zero
+  jmp .ret
+  .zero:
+  mov al, 0
   jmp .ret
 
   .release:

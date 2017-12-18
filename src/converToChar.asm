@@ -41,12 +41,45 @@ extern mVisual
 extern paste
 extern yank
 extern cYank
+extern exit
+extern undo
+extern putName
+
+; verifica si se presiono el caracter de salida
+isExit:
+    cmp al, KEY.Esc
+    jne .ret
+    inc byte [exit]
+    .ret:
+    ret
 
 ; toma decisiones en modo normal
 global normalActions
 normalActions:
+    call isExit
+    mov byte [double], 0
+    cmp al, KEY.numDel
+    je .del
+    cmp al, KEY.X
+    jne .not_nd
+    .del:
+    call delete
+    mov bx, 0 | DEFCOL
+    jmp .ret
+    .not_nd:
+    cmp al, KEY.CapsLock
+    jne .not_capslock
+    mov bl, [capsLockButton]
+    xor bl, 1
+    mov [capsLockButton], bl
+    mov bx, 0 | DEFCOL
+    jmp .ret
+    .not_capslock:
     cmp al, KEY.LEFT
+    je .left
+    cmp al, KEY.H
     jne .not_left
+    .left:
     mov ebx, -2
     push ebx
     call move
@@ -54,7 +87,10 @@ normalActions:
     jmp .ret
     .not_left:
     cmp al, KEY.RIGHT
+    je .rigth
+    cmp al, KEY.L
     jne .not_right
+    .rigth:
     mov ebx, 2
     push ebx
     call move
@@ -62,7 +98,10 @@ normalActions:
     jmp .ret
     .not_right:
     cmp al, KEY.UP
+    je .up
+    cmp al, KEY.K
     jne .not_up
+    .up:
     mov ebx, -160
     push ebx
     call move
@@ -70,7 +109,10 @@ normalActions:
     jmp .ret
     .not_up:
     cmp al, KEY.DOWN
+    je .down
+    cmp al, KEY.J
     jne .not_down
+    .down:
     mov ebx, 160
     push ebx
     call move
@@ -81,13 +123,21 @@ normalActions:
     jne .not_p
     call paste
     .not_p:
+    cmp al, KEY.U
+    jne .not_u
+    call undo
+    .not_u:
     .ret:
     ret
 ; toma decisiones en modo visual
 global visualActions
 visualActions:
+    call isExit
     cmp al, KEY.LEFT
+    je .left
+    cmp al, KEY.H
     jne .not_left
+    .left:
     mov ebx, -2
     push ebx
     call setSelection
@@ -95,7 +145,10 @@ visualActions:
     jmp .ret
     .not_left:
     cmp al, KEY.RIGHT
+    je .rigth
+    cmp al, KEY.L
     jne .not_right
+    .rigth:
     mov ebx, 2
     push ebx
     call setSelection
@@ -103,7 +156,10 @@ visualActions:
     jmp .ret
     .not_right:
     cmp al, KEY.UP
+    je .up
+    cmp al, KEY.K
     jne .not_up
+    .up:
     mov ebx, -160
     push ebx
     call setSelection
@@ -111,7 +167,10 @@ visualActions:
     jmp .ret
     .not_up:
     cmp al, KEY.DOWN
+    je .down
+    cmp al, KEY.J
     jne .not_down
+    .down:
     mov ebx, 160
     push ebx
     call setSelection
@@ -123,17 +182,30 @@ visualActions:
     mov bl, [capsLockButton]
     xor bl, 1
     mov [capsLockButton], bl
-    mov bl, [mVisual]
-    xor bl, 1
-    mov [mVisual], bl
-    xor ebx, ebx
-    push ebx
-    call setSelection
-    add esp, 4
-    jmp .ret
     .not_capslock:
+    cmp al, KEY.V
+    jne .not_v
+    xor ebx, ebx
+    mov bl, [capsLockButton]
+    xor bl, [shift]
+    cmp bl, [mVisual]
+    jne .change
+    inc byte [exit]
+    jmp .ret
+    .change:
+        mov [mVisual], bl
+        add bl, 2
+        push ebx
+        call putName
+        xor ebx, ebx
+        push ebx
+        call setSelection
+        pop ebx
+        jmp .ret
+    .not_v:
     cmp al, KEY.Y
     jne .not_y
+    inc byte [exit]
     call yank
     .not_y:
     .ret:
@@ -141,10 +213,11 @@ visualActions:
 ; con inst de cadena, deja en bx el caracter
 global convert2
 convert2:
+    call isExit
     push ax
     xor ebx, ebx
     mov ax, [esp + 6]
-    cmp ax, KEY.Y
+    cmp al, KEY.Y
     jne .continue
     mov bx, 1
     cmp bx, [control]
@@ -185,14 +258,6 @@ convert2:
         mov bx, 0 | DEFCOL
         jmp .ret
         .not_nd:
-        cmp al, KEY.Tab
-        jne .not_ps
-        mov bl, [writeMode]
-        xor bl, 1
-        mov [writeMode], bl
-        mov bx, 0 | DEFCOL
-        jmp .ret
-        .not_ps:
         cmp al, KEY.Esc
         jne .not_esc
         mov bx, 0 | DEFCOL

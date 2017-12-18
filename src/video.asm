@@ -1,4 +1,4 @@
-        %include "video.mac"
+%include "video.mac"
 
 ; Frame buffer location
 %define FBUFFER 0xB8000
@@ -112,7 +112,7 @@
         jne %%conti
         push eax
         push esi
-        BACK_TEXT [line]
+        BACK_TEXT [temp]
         PRINT
         pop esi
         pop eax
@@ -328,12 +328,18 @@
         jbe .paintAll
 %endmacro
 
+%macro CHANGE_MEM 2.nolist
+    mov esi, %1
+    mov edi, %2
+    movsd
+%endmacro
 
 section .data
 
 ; array donde se guarda la entrada
 global input
 input times 2000000 dw 0 | DEFCOL
+previousInput times 2000000 dw 0 | DEFCOL
 
 ; portapeles
 trash times 2000000 dw 0
@@ -353,6 +359,18 @@ lineCounter dd 0        ;indicador de columna
 lastChar dd 0           ;posicion del ultimo caracter
 cursorColor db 0        ;indicador de estado del cursor
 temp dd 0
+
+; necesario para undo
+global linealAction
+linealAction db 0
+; copias de la variables
+cpVStart dd 0 
+cpPointer dd 0 
+cpLine dd 0 
+cpGLine dd 0 
+cpLCounter dd 0 
+cpLChar dd 0 
+cpCColor dd 0 
 
 ; VARIABLES DEL MODO VISUAL
 posStart dd 0           ; guarda la posicion en que se entro a modo visual
@@ -377,7 +395,14 @@ finalText dw "P" | DEFCOL, "r" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCO
 
 insert dw "-" | DEFCOL, "-" | DEFCOL, "I" | DEFCOL, "N" | DEFCOL, "S" | DEFCOL, "E" | DEFCOL, "R" | DEFCOL, "T" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
 
+replace dw "-" | DEFCOL, "-" | DEFCOL, "R" | DEFCOL, "E" | DEFCOL, "P" | DEFCOL, "L" | DEFCOL, "A" | DEFCOL, "C" | DEFCOL, "E" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
+
 visual dw "-" | DEFCOL, "-" | DEFCOL, "V" | DEFCOL, "I" | DEFCOL, "S" | DEFCOL, "U" | DEFCOL, "A" | DEFCOL, "L" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
+
+visualLine dw "-" | DEFCOL, "-" | DEFCOL, "V" | DEFCOL, "I" | DEFCOL, "S" | DEFCOL, "U" | DEFCOL, "A" | DEFCOL, "L" | DEFCOL, " " | DEFCOL, "L" | DEFCOL, "I" | DEFCOL, "N" | DEFCOL, "E" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
+
+modesNames dd insert, replace, visual, visualLine, nullLine
+lengths dd 10, 11, 10, 15, 0
 
 ; linea vacia
 nullLine times 80 dw 0 | DEFCOL
@@ -458,12 +483,21 @@ write:
 ; escribe en el array donde es guardado el texto y manda a pintar
 global writeScroll
 writeScroll:
+    call action
     xor ebx, ebx
     mov bx, [esp + 4]
     xor eax, eax
     mov [cursorColor], al
     mov eax, [pointer]
     add eax, [viewStart]
+    cmp word [input + eax], 255 | DEFCOL
+    jne .no_enter
+    push eax
+    push ebx
+    MOVE_ALL_RIGTH
+    pop ebx
+    pop eax
+    .no_enter:
     ; escribe en el texto + la posicion inicial actual + el cursor
     mov [input + eax], bx
     ; actualiza el valor de la posicion dl ultimo char
@@ -479,6 +513,7 @@ writeScroll:
 ; escribe en el array donde es guardado el texto y manda a pintar
 global nonReWrite
 nonReWrite:
+    call action
     xor ebx, ebx
     xor eax, eax
     mov [cursorColor], al
@@ -523,31 +558,27 @@ start:
     mov [capsLockButton], al
     mov [len], eax
     mov eax, input
-    mov word [eax], 32 | DEFCOL
+    mov word [eax], 255 | DEFCOL
     ret
 
-; Pone el indicador de modo en -Insert-
-global putModeI
-putModeI:
-    OUTPUT_LINE insert, FBUFFER + 3842, 10
-    ret
-
-; Turn Visual mode
-global putModeV
-putModeV:
-    OUTPUT_LINE visual, FBUFFER + 3842, 10
-    ret
-
-global putModeN
-putModeN:
-    OUTPUT_LINE nullLine, FBUFFER + 3842, 10
-    ret
-
+; Pone el indicador de modo
+global putName
+putName:
+    OUTPUT_LINE nullLine, FBUFFER + 3842, 15
+    mov eax, [esp + 4]
+    mov cl, 2
+    shl eax, cl
+    OUTPUT_LINE [modesNames + eax], FBUFFER + 3842, [lengths + eax]
+    ret 4
 ; Mueve el pointer y borra el ultimo char
 global backSpace
 backSpace:
     push eax
+    call action
     call repairCursor
+    mov eax, [line]
+    dec eax
+    mov [temp], eax
     .repeat:
     xor edx, edx
     MOVE_ALL_LEFT
@@ -564,6 +595,8 @@ backSpace:
 global move
 move:
     push eax
+    mov al, 1
+    mov [linealAction], al
     call repairCursor
     mov eax, [pointer]
     FORWARD [esp + 8]
@@ -574,6 +607,7 @@ move:
 global delete
 delete:
     push eax
+    call action
     call repairCursor
     mov edx, 0
     UPD_POINTER 2
@@ -595,6 +629,7 @@ delete:
     UPD_POINTER [temp]
     call backSpace
     .ok:
+    call action
     pop eax
     ret
 ;pone el enter camina el cursor hasta la siguiente fila y pone el texto correctamente 
@@ -620,6 +655,7 @@ finishLine:
     mov bx, 255 | DEFCOL
     mov [eax], bx
     PRINT
+    call action
     pop ebx
     pop eax
     ret
@@ -731,6 +767,8 @@ yank:
 ; copie el texto guardado anteriormente
 global paste
 paste:
+    call safe
+    call repairCursor
     UPD_POINTER 2
     mov al, [copieMode]
     cmp al, 0
@@ -780,10 +818,15 @@ paste:
         pop esi
         jmp .copieText
     .end:
-    pop dword [lineCounter]
-    pop dword [line]
-    pop dword [viewStart]
-    pop dword [pointer]   
+    mov al, [copieMode]
+    cmp al, 0
+    je .adjust_pointers
+    call backSpace
+    .adjust_pointers:
+        pop dword [lineCounter]
+        pop dword [line]
+        pop dword [viewStart]
+        pop dword [pointer]   
     mov al, [copieMode]
     cmp al, 0
     je .conti2
@@ -802,6 +845,8 @@ paste:
     jne .for
     mov word [eax], 255 | DEFCOL
     .conti2:
+    mov al, 1
+    mov [linealAction], al
     ret
 
 ; Reinicia el programa
@@ -842,4 +887,40 @@ cYank:
     pop bx
     .fin:
     pop eax
+    ret
+
+; new action
+action:
+    mov al, [linealAction]
+    cmp al, 0
+    je .ret
+    call safe
+    .ret:
+    ret
+; safe screen
+global safe
+safe:
+    OUTPUT_LINE input, previousInput, 2000000
+    CHANGE_MEM pointer, cpPointer
+    CHANGE_MEM viewStart, cpVStart
+    CHANGE_MEM lastChar, cpLChar
+    CHANGE_MEM line, cpLine
+    CHANGE_MEM lineCounter, cpLCounter
+    CHANGE_MEM graderLine, cpGLine
+    CHANGE_MEM cursorColor, cpCColor
+    xor al, al
+    mov [linealAction], al
+    ret
+; recover screen
+global undo
+undo:
+    OUTPUT_LINE previousInput, input, 2000000
+    CHANGE_MEM cpPointer, pointer 
+    CHANGE_MEM cpVStart, viewStart
+    CHANGE_MEM cpLChar, lastChar
+    CHANGE_MEM cpLine, line
+    CHANGE_MEM cpLCounter, lineCounter
+    CHANGE_MEM cpGLine, graderLine
+    CHANGE_MEM cpCColor,  cursorColor
+    PRINT
     ret

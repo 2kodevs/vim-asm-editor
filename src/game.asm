@@ -4,6 +4,10 @@
 section .bss
 lastKey resb 1 ; Ultima tecla presionada en el insertMode
 
+section .data
+global exit
+exit db 0      ; indica si es necesario entrar al Modo Normal
+
 section .text
 
 extern clear                ; limpia la pantalla
@@ -16,9 +20,7 @@ extern convert              ; devuelve el caracter
 extern convert2             ; devuelve el caracter
 extern start                ; pone la presentacion
 extern write                ; escribe directo al bufer
-extern putModeI             ; escribe el modo -Insert-
-extern putModeV             ; Write -Visual- and start visual mode
-extern putModeN
+extern putName              ; escibe el nombre del modo
 extern pointer              ; puntero del cursor
 extern writeScroll          ; escribe al array que proporciona sensacion de scroll
 extern nonReWrite           ; no sobrescribe
@@ -28,11 +30,13 @@ extern initializeVisual     ; inicializa el modo visual
 extern visualActions        ; decide las acciones en modo visual
 extern normalActions        ; decide las acciones en modo normal
 extern mVisual              ; indicadar del tipo de visual
-extern capsLockButton       ; indica si fue presionada mayuscula
-extern control
-extern shift
-extern reboot
-extern restoreScreen
+extern capsLockButton       ; indica si esta presionada mayuscula
+extern control              ; indica si el control esta presionado
+extern shift                ; indica si el control esta presionado
+extern reboot               ; reinicia la aplicacion
+extern restoreScreen        ; le pone le color default a todo lo escrito
+extern safe                 ; guarda el contenido de la pantalla
+extern linealAction
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -81,61 +85,84 @@ game:
             je break
             jmp pressOnKey
         break:
-            
-        ; limpia la pantalla    Este fill esta fuera de lugar, solo se necesita la primera vez
-        FILL_SCREEN DEFCOL
+        
+        ; posicionar el cursor en el inicio de la pantalla
         mov ebx, 0
         mov [pointer], ebx
 
         ; Enter in normal mode for first time  
         .normalMode:
+            xor eax, eax
+            mov [linealAction], al
+            mov [exit], al
             call restoreScreen
-            call putModeN
+            mov eax, 4
+            push eax
+            call putName
             .normalLoop:
                 call cursor
-                ;call pauseCursor
                 call scan
+                cmp al, 0
+                je .normalLoop
                 call normalActions
                 cmp al, KEY.I
                 je .insertMode
+                cmp al, KEY.R
+                jne .check_others
+                mov bl, [capsLockButton] ; comprobar si la mayuscula esta presionada
+                xor bl, [shift] 
+                cmp bl, 1
+                je .replaceMode 
+                .check_others:
                 cmp al, KEY.V
                 je .visualMode
                 cmp al, KEY.C
-                jne .not_C
-                push ax
+                jne .normalLoop
                 mov al, [control]
                 cmp al, 1
-                jne .not_C
-                pop ax
+                jne .normalLoop
                 call reboot
                 jmp game
-                .not_C:
-                pop ax
-                jmp .normalLoop
 
-
+        ; enter in insert mode
         .insertMode:
-            call putModeI
+            xor eax, eax
+            mov [linealAction], al
+            mov [writeMode], al
+            push eax
+            call putName
             .read:
                 call get_input
-                mov al, [lastKey]
-                cmp al , KEY.Esc ; Rulo tu pon KEY.Esc en ves d 0x10
+                mov al, [exit]
+                cmp al, 1
                 je .normalMode
                 jmp .read
+
+        ; enter in replace mode
+        .replaceMode:
+            xor eax, eax
+            mov [linealAction], al
+            mov al, 1
+            mov [writeMode], al
+            jmp .read
         
+        ; enter in visual mode
         .visualMode:
-            call putModeV
+            xor eax, eax
             mov al, [capsLockButton] ; comprobar si la mayuscula esta presionada
-            xor al, [shift]   
-            .next:
+            xor al, [shift] 
             mov [mVisual], al
+            add al, 2
+            push eax
+            call putName
             call initializeVisual
             .standard:
                 call cursor
                 call scan
-                cmp al, KEY.Esc ; Rulo tu pon KEY.Esc en ves d 0x10
-                je .normalMode
                 call visualActions
+                mov al, [exit]
+                cmp al, 1
+                je .normalMode
                 jmp .standard
 
 draw.red:
