@@ -15,17 +15,17 @@ extern cursor
 ; Scan for new keypress. Returns new scancode if changed since last call
 global scan
 scan:
-  jmp .sc
-
-  .l:
+  jmp .scaning
+  .blink:
   call cursor
-  .sc:
+  .scaning:
   in al, 0x64
   test al, 1
-  jz .l
-  ;in al, 0x64
-  ;test al, 32
-  ;jnz scan
+  jz .blink
+  ; for touchpad problems
+  in al, 0x64 
+  test al, 32
+  jnz .blink
 
   in al, 0x60
 
@@ -34,6 +34,10 @@ scan:
   cmp al, KEY.RightSHF
   je shiftOn
   mov bl, KEY.LeftSHF
+  add bl, 80h
+  cmp bl, al
+  je shiftOff
+  mov bl, KEY.RightSHF
   add bl, 80h
   cmp bl, al
   je shiftOff
@@ -68,10 +72,6 @@ continue:
   mov bl, al
   cmp al, [key]
   je .release
- ; mov cl, [key]
- ; add cl, 80h
- ; cmp al, cl
- ; je .zero
   mov [key], al
   cmp al, 0xA6
   ja .zero

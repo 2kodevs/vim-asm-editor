@@ -27,5 +27,6 @@
 
 %define DEFCOL FG.WHITE | BG.BLACK
 %define VISUALCOL FG.WHITE | BG.GRAY 
+%define NULL 0 | DEFCOL
 
 %endif ; VIDEO_MAC

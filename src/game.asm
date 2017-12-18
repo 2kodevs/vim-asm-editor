@@ -2,41 +2,39 @@
 %include "keyboard.mac"
 
 section .bss
-lastKey resb 1 ; Ultima tecla presionada en el insertMode
+lastKey resb 1 ; last pressed key 
 
 section .data
 global exit
-exit db 0      ; indica si es necesario entrar al Modo Normal
+exit db 0      ; one if change to Normal Mode is necessary 
 
 section .text
 
-extern clear                ; limpia la pantalla
-extern scan                 ; lee del teclado
-extern calibrate            ; hace algo
-extern putc                 ; pone un caracter en una posicion <x, y>
-extern cursor               ; hace parpadear el cursor
-extern pauseCursor          ; detiene el tiempo
-extern convert              ; devuelve el caracter
-extern convert2             ; devuelve el caracter
-extern start                ; pone la presentacion
-extern write                ; escribe directo al bufer
-extern putName              ; escibe el nombre del modo
-extern pointer              ; puntero del cursor
-extern writeScroll          ; escribe al array que proporciona sensacion de scroll
-extern nonReWrite           ; no sobrescribe
-extern writeMode            ; tipo de escritura
-extern writeTools           ; array con los tipos de escritura
-extern initializeVisual     ; inicializa el modo visual
-extern visualActions        ; decide las acciones en modo visual
-extern normalActions        ; decide las acciones en modo normal
-extern mVisual              ; indicadar del tipo de visual
-extern capsLockButton       ; indica si esta presionada mayuscula
-extern control              ; indica si el control esta presionado
-extern shift                ; indica si el control esta presionado
-extern reboot               ; reinicia la aplicacion
-extern restoreScreen        ; le pone le color default a todo lo escrito
-extern safe                 ; guarda el contenido de la pantalla
-extern linealAction
+extern clear                ; clean screen
+extern scan                 ; read keyboard
+extern calibrate            ; wait at least a full second to calibrate timing
+extern putc                 ; put one char in a position <x, y>
+extern cursor               ; blink cursor
+extern insertActions        ; manage commands of insert mode
+extern visualActions        ; manage commands of visual mode
+extern normalActions        ; manage commands of normal mode
+extern start                ; show presentation
+extern write                ; write at the buffer
+extern putName              ; write the name of the actual mode
+extern pointer              ; store the cursor ip
+extern writeMode            ; store the type of write that is already in use 
+extern writeTools           ; array that contain the write functions
+extern initializeVisual     ; initialize Visual mode
+extern mVisual              ; store the type of visual mode that is already in use 
+extern capsLockButton       ; show is "caps locks"" is pressed
+extern control              ; show is "ctrl" is pressed
+extern shift                ; show is "shift" is pressed
+extern reboot               ; restart the application
+extern restoreScreen        ; put default color on all the screen
+extern safe                 ; safe the actual screen state
+extern doubleG              ; store the number of pressed g's
+extern readNumber           ; store the input of numbers
+extern linealAction         ; store the state of last action
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -61,32 +59,19 @@ game:
     ; Calibrate the timing
     call calibrate        
 
-    ; Snakasm main loop
+    ; main loop
     game.loop:
         
-        ; Pequenna presentacion
         call start
          
-        ; wait Press
-        ;call scan
-        ;mov cl, al
         pressOnKey:
-            ;scall cursor
             call scan
-
-            ;cmp al, 0xA6
-            ;jbe .check
-            ;jmp pressOnKey
-            ;.check:
-            ;cmp al, 0x00
-            ;ja break
-
             cmp al, KEY.ENTER
             je break
             jmp pressOnKey
         break:
         
-        ; posicionar el cursor en el inicio de la pantalla
+        ; positionate the cursor in the screen's start
         mov ebx, 0
         mov [pointer], ebx
 
@@ -102,7 +87,6 @@ game:
             mov byte [doubleG], 0
             mov byte [readNumber], 0
             .normalLoop:
-                ;call pauseCursor
                 call scan
                 cmp al, 0
                 je .normalLoop
@@ -111,7 +95,7 @@ game:
                 je .insertMode
                 cmp al, KEY.R
                 jne .check_others
-                mov bl, [capsLockButton] ; comprobar si la mayuscula esta presionada
+                mov bl, [capsLockButton] ; check the "mayus" state
                 xor bl, [shift] 
                 cmp bl, 1
                 je .replaceMode 
@@ -153,7 +137,7 @@ game:
         ; enter in visual mode
         .visualMode:
             xor eax, eax
-            mov al, [capsLockButton] ; comprobar si la mayuscula esta presionada
+            mov al, [capsLockButton]
             xor al, [shift] 
             mov [mVisual], al
             add al, 2
@@ -168,6 +152,7 @@ game:
                 cmp al, 1
                 je .normalMode
                 jmp .standard
+            
 
 draw.red:
     FILL_SCREEN BG.RED
@@ -180,21 +165,19 @@ draw.green:
 
 
 get_input:  
-    ;call cursor
     call scan
     mov [lastKey], al
     push ax
-    call convert2
-    cmp bx, 0 | DEFCOL
+    call insertActions
+    cmp bx, NULL
     je no
     push bx
     xor ebx, ebx
-    mov [doubleG], bl
     mov bl, [writeMode]
     mov cl, 2
     shl ebx, cl
     call [writeTools + ebx]
     add esp, 2
     no:
-    add esp, 2 ; free the stack
+    add esp, 2
     ret

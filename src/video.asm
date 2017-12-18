@@ -13,7 +13,8 @@
     shl ax, 1
 %endmacro
 
-; Pinta un texto dado, con su buffer y su length
+; Draw text of one array to another
+; OUTPUT_LINE(dword source, dword target, dword length)
 %macro OUTPUT_LINE 3.nolist
     cld
     mov esi, %1
@@ -22,28 +23,28 @@
     rep movsw
 %endmacro
 
-; pinta toda la pantalla
+; Paint screen
 %macro PRINT 0.nolist
     mov eax, [viewStart]
     add eax, input
     OUTPUT_LINE eax, FBUFFER, COLS*ROWS
 %endmacro
 
-; desplaza las letras para su derecha
-%macro MOVE_ALL_RIGTH 0.nolist
+; Push text to the right
+%macro MOVE_ALL_RIGHT 0.nolist
     cld
     mov esi, input
     add esi, [pointer]
     add esi, [viewStart]
     mov ebx, [lineCounter]
     lodsw
-    mov word [esi - 2], 0 | DEFCOL
+    mov word [esi - 2], NULL
     add ebx, 2
     cmp ebx, 160
     jne %%move
     xor ebx, ebx
     %%move:
-        cmp ax, 0 | DEFCOL
+        cmp ax, NULL
         je %%end
         cmp ax, 255 | DEFCOL
         je %%check
@@ -75,7 +76,7 @@
     %%ret:
 %endmacro
 
-; desplaza las letras para su izquierda
+; Push text to the left
 %macro MOVE_ALL_LEFT 0.nolist
     mov eax, [pointer]
     add eax, [viewStart]
@@ -90,7 +91,7 @@
     push word [edi]
     mov ebx, [lineCounter]
     %%move:
-        cmp word [esi], 0 | DEFCOL
+        cmp word [esi], NULL
         je %%end
         cmp word [esi], 255 | DEFCOL
         je %%check
@@ -105,7 +106,7 @@
     %%end:
         movsw
         sub esi, 2
-        mov word [esi], 0 | DEFCOL
+        mov word [esi], NULL
         cmp ecx, 10
         jne %%conti
         cmp ebx, 0
@@ -124,13 +125,14 @@
         mov [lastChar], esi
     %%fin:
         pop ax
-        cmp ax, 0 | DEFCOL
+        cmp ax, NULL
         jne %%impossible
         mov edx, 1
     %%impossible:
 %endmacro
 
-; mueve el puntero hasta el siguiente caracter dado un sentido, un avance 
+; Move cursor to next nonempty char in the given direction
+; FORWARD(dword direction)
 %macro FORWARD 1.nolist
     xor edx, edx
     UPD_POINTER %1
@@ -145,7 +147,7 @@
     mov ecx, 160
     imul ecx
     add eax, input
-    cmp word [eax], 0 | DEFCOL
+    cmp word [eax], NULL
     je %%end
     mov edx, 160
     sub edx, [lineCounter]
@@ -153,7 +155,7 @@
     UPD_POINTER [temp]
     jmp %%end  
     %%conti:             
-    ; caso 2 : moverse en cualquier otra direccion
+    ; caso 2 : moverse en cualquier otra direction
     mov edx, %1
     cmp edx, 160
     jne %%ok
@@ -162,7 +164,7 @@
     mov ecx, 160
     imul ecx
     add eax, input
-    cmp word [eax], 0 | DEFCOL
+    cmp word [eax], NULL
     je %%end
     %%ok:
     mov edx, %1
@@ -171,7 +173,7 @@
     add eax, input 
     add eax, edx
     %%lop:
-        cmp word [eax], 0 | DEFCOL
+        cmp word [eax], NULL
         jne %%endLoop
         add edx, -2
         add eax, -2
@@ -183,7 +185,8 @@
     %%end: 
 %endmacro 
 
-; Ajusta todos los punteros
+; Update all pointers to the new position
+; UPD_POINTER(dword advance)
 %macro UPD_POINTER 1.nolist
     mov eax, [pointer]
     add eax, [viewStart]
@@ -191,7 +194,7 @@
     add eax, %1
     cmp eax, input
     jb %%real_end
-    cmp word [eax], 0 | DEFCOL
+    cmp word [eax], NULL
     je %%real_end
     mov edx, 1    ; para verificar si hubo movimiento
     ;cmp eax, [lastChar]
@@ -220,9 +223,9 @@
             mov ebx, [line]
             add ebx, 1
             mov [line], ebx
-            cmp [graderLine], ebx
+            cmp [greaterLine], ebx
             jae %%conti
-            mov [graderLine], ebx
+            mov [greaterLine], ebx
             %%conti:
             sub eax, 160
             mov [lineCounter], eax
@@ -252,13 +255,14 @@
     %%real_end:
 %endmacro
 
-; desplaza todas las lineas del texto una por una hacia abajo
+; Move down the text forward to the given line
+; ADVANCE_TEXT(dword line)
 %macro ADVANCE_TEXT 1.nolist
-    mov eax, [graderLine]
+    mov eax, [greaterLine]
     cmp eax, %1
     je %%end
     add eax, 1
-    mov [graderLine], eax
+    mov [greaterLine], eax
     sub eax, 1
     mov ebx, 160
     imul ebx
@@ -282,16 +286,17 @@
     %%end:
 %endmacro
 
-; desplaza todas las lineas del texto una por una hacia arriba
+; Move up the text forward to the given line
+; BACK_TEXT(dword line)
 %macro BACK_TEXT 1.nolist
-    mov eax, [graderLine]
+    mov eax, [greaterLine]
     sub eax, 1
     cmp eax, %1
     jbe %%end
     add eax, 1
     mov ebx, 160
     imul ebx
-    mov ecx, eax  ; ecx = graderline x 160
+    mov ecx, eax  ; ecx = greaterline x 160
     mov eax, %1
     add eax, 1
     imul ebx
@@ -311,7 +316,7 @@
     %%end:
 %endmacro
 
-; Pone el color default en todo el screen
+; Set default color on the screen
 %macro SCREEN_COLOR 0.nolist
     cld
     mov esi, input
@@ -328,95 +333,96 @@
         jbe .paintAll
 %endmacro
 
+; Move information of the one memory direction to another
+; CHANGE_MEM(dword source, dword target)
 %macro CHANGE_MEM 2.nolist
     mov esi, %1
     mov edi, %2
     movsd
 %endmacro
-; deja en ecx el length de una cadena
-; param ip of string
-%macro LENGTHOF 1.nolist
-push esi
-push eax
-xor ecx, ecx
-mov esi, %1
-repnz lodsw
-dec ecx
-pop eax
-pop esi
+
+; Put in "ecx" the length of the string
+; LENGTH_OF(dword string)
+%macro LENGTH_OF 1.nolist
+    xor ecx, ecx
+    mov esi, %1
+    %%while: 
+    lodsw
+    cmp ax, NULL
+    je %%end
+    add ecx, 2
+    %%end:
 %endmacro
 
-; deja en inputLen el length del input y en edx la cantidad
-; de lineas que ha leido
+; Not used
 %macro CANTOFCHAR 0.nolist
-push esi
-push eax
-push ebx
-xor ecx, ecx
-;mov esi, [viewStart]
-mov esi, input
-xor ebx, ebx
-xor edx, edx
-cld
-%%while:
-lodsw
-add bx, 2
-cmp ax, 0 | DEFCOL
-jne %%continue
-cmp bx, 160
-je %%update
-add esi, 160
-sub esi, ebx
-%%update:
-inc edx
-mov bx, [esi]
-cmp bx, 0 | DEFCOL
-je %%end
-xor bx, bx
-jmp %%while
-%%continue:
-add ecx, 2
-jmp %%while
-%%end:
-mov dword [inputLen], ecx
-pop ebx
-pop eax
-pop esi
+    push esi
+    push eax
+    push ebx
+    xor ecx, ecx
+    mov esi, input
+    xor ebx, ebx
+    xor edx, edx
+    cld
+    %%while:
+        lodsw
+        add bx, 2
+        cmp ax, NULL
+        jne %%continue
+        cmp bx, 160
+        je %%update
+        add esi, 160
+        sub esi, ebx
+    %%update:
+        inc edx
+        mov bx, [esi]
+        cmp bx, NULL
+        je %%end
+        xor bx, bx
+        jmp %%while
+    %%continue:
+        add ecx, 2
+        jmp %%while
+    %%end:
+    mov dword [inputLen], ecx
+    pop ebx
+    pop eax
+    pop esi
 %endmacro
 
 section .data
 
-; array donde se guarda la entrada
+; input array
 global input
-input times 2000000 dw 0 | DEFCOL
-previousInput times 2000000 dw 0 | DEFCOL
+input times 2000000 dw NULL
+previousInput times 2000000 dw NULL
 
-; portapeles
+; clipboard
 trash times 2000000 dw 0
 
-; array donde se guarda pi
+; pi Array (used in KMP)
 pi times 2000000 dw 0
 
-; VARIABLES DEL MODO INSERT
-; puntero apuntando a la inicial inicial mostrada en los BUFFERS
+; INSERT SCOPE
+; pointer that contain the direction of the first char in view
 global viewStart
 viewStart dd 0
 
-; puntero que indica la posicion del cursor en los BUFFERS
+; position of the cursor
 global pointer
-pointer dd 2198
+pointer dd 2188
 
-line dd 0               ;linea actual
-graderLine dd 0         ;mayor linea alcanzada
-lineCounter dd 0        ;indicador de columna
-lastChar dd 0           ;posicion del ultimo caracter
-cursorColor db 0        ;indicador de estado del cursor
+line dd 0               ; actual line
+greaterLine dd 0        ; greater line reached
+lineCounter dd 0        ; column pointer
+lastChar dd 0           ; position of the last char
+cursorColor db 0        ; store the cursor state
 temp dd 0
 
-; necesario para undo
+; Undo support
 global linealAction
 linealAction db 0
-; copias de la variables
+; pointers copies
 cpVStart dd 0 
 cpPointer dd 0 
 cpLine dd 0 
@@ -425,26 +431,26 @@ cpLCounter dd 0
 cpLChar dd 0 
 cpCColor dd 0 
 
-; VARIABLES DEL MODO VISUAL
-posStart dd 0           ; guarda la posicion en que se entro a modo visual
-lineStart dd 0          ; guarda la linea en que se entro a modo visual
+; VISUAL SCOPE
+posStart dd 0           ; safe the position which what was entered in visual mode
+lineStart dd 0          ; safe the line which what was entered in visual mode
 
 global mVisual
-mVisual db 0            ; guarda el tipo de modo visual
+mVisual db 0            ; type of visual mode
 
-copieMode db 0          ; guarda el tipo de modo visual en que se realizo la copia
-inicio dd 0             ; guarda el inicio del texto seleccionado
-len dd 0                ; guarda la cantidad de letras del texto seleccionado
-realLen dd 0            ; guarda la cantidad de letras del texto copiado
+copieMode db 0          ; type of visual mode copie
+textStart dd 0          ; first char of the selected text
+len dd 0                ; lenght of the last selected text
+realLen dd 0            ; lenght of the last copied text
 
-; textos predefinidos
+; defaut texts
 text dw "P" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "y" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "t" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "d" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "M" | DEFCOL, "I" | DEFCOL
 
 raul dw "L" | DEFCOL, "a" | DEFCOL, "z" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "R" | DEFCOL, "a" | DEFCOL, "u" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "I" | DEFCOL, "g" | DEFCOL, "l" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "a" | DEFCOL, "s" | DEFCOL, " " | DEFCOL, "V" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL
 
-teno dw "M" | DEFCOL, "i" | DEFCOL, "g" | DEFCOL, "u" | DEFCOL, "e" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "T" | DEFCOL, "e" | DEFCOL, "n" | DEFCOL, "o" | DEFCOL, "r" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "o" | DEFCOL, "t" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "i" | DEFCOL
+teno dw "M" | DEFCOL, "i" | DEFCOL, "g" | DEFCOL, "u" | DEFCOL, "e" | DEFCOL, "l" | DEFCOL, " " | DEFCOL, "T" | DEFCOL, "e" | DEFCOL, "n" | DEFCOL, "o" | DEFCOL, "r" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, " " | DEFCOL, "P" | DEFCOL, "o" | DEFCOL, "t" | DEFCOL, "r" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "y" | DEFCOL
 
-finalText dw "P" | DEFCOL, "r" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "l" | DEFCOL, "q" | DEFCOL, "u" | DEFCOL, "i" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, " " | DEFCOL, "t" | DEFCOL, "e" | DEFCOL, "c" | DEFCOL, "l" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "p" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "t" | DEFCOL, "i" | DEFCOL, "n" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "." | DEFCOL, "." | DEFCOL, "." | DEFCOL
+finalText dw "P" | DEFCOL, "r" | DEFCOL, "e" | DEFCOL, "s" | DEFCOL, "i" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "e" | DEFCOL, " " | DEFCOL, "e" | DEFCOL, "n" | DEFCOL, "t" | DEFCOL, "e" | DEFCOL, "r" | DEFCOL, " " | DEFCOL, "p" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "a" | DEFCOL, " " | DEFCOL, "c" | DEFCOL, "o" | DEFCOL, "n" | DEFCOL, "t" | DEFCOL, "i" | DEFCOL, "n" | DEFCOL, "u" | DEFCOL, "a" | DEFCOL, "r" | DEFCOL, "." | DEFCOL, "." | DEFCOL, "." | DEFCOL
 
 insert dw "-" | DEFCOL, "-" | DEFCOL, "I" | DEFCOL, "N" | DEFCOL, "S" | DEFCOL, "E" | DEFCOL, "R" | DEFCOL, "T" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
 
@@ -454,34 +460,34 @@ visual dw "-" | DEFCOL, "-" | DEFCOL, "V" | DEFCOL, "I" | DEFCOL, "S" | DEFCOL, 
 
 visualLine dw "-" | DEFCOL, "-" | DEFCOL, "V" | DEFCOL, "I" | DEFCOL, "S" | DEFCOL, "U" | DEFCOL, "A" | DEFCOL, "L" | DEFCOL, " " | DEFCOL, "L" | DEFCOL, "I" | DEFCOL, "N" | DEFCOL, "E" | DEFCOL, "-" | DEFCOL, "-" | DEFCOL
 
-modesNames dd insert, replace, visual, visualLine, nullLine
-lengths dd 10, 11, 10, 15, 0
+cmdLine dw "/" | DEFCOL
+modesNames dd insert, replace, visual, visualLine, nullLine, cmdLine
+lengths dd 10, 11, 10, 15, 0, 1
 
-; linea vacia
-nullLine times 80 dw 0 | DEFCOL
+; empty line
+nullLine times 80 dw NULL
 
-; metodos
+; funtions
 global writeTools
-writeTools dd nonReWrite, writeScroll
+writeTools dd write, replaceWrite
 
-; variables del KMP
+; KMP's variables
 paternLen dd 0
 inputLen dd 0
 tempKMP dw 0
-
+matches times 2000000 dd 0
+startLen dd 0
 
 section .text
 
-;extern pauseCursorForASecond
-extern pauseCursor
 extern writeMode 
 extern capsLockButton
 extern shift
 extern control
 extern readNumber
 
-; clear(byte char, byte attrs)
 ; Clear the screen by filling it with char and attributes.
+; clear(byte char, byte attrs)
 global clear
 clear:
     push ax
@@ -493,10 +499,9 @@ clear:
     pop ax
     ret
 
-; hace parpadear el puntero
+; blink cursor
 global cursor
 cursor:
-    ;call pauseCursor ; Funciona delay actual:150 si quieres descomenta esta linea pero ponle 1 ms en timing
     mov al, [cursorColor]
     xor al, 1
     mov [cursorColor], al
@@ -507,7 +512,7 @@ cursor:
     mov [FBUFFER + eax], bx
     ret
 
-; arregla el posible cambio de coloracion provocado por el cursor
+; fix the cursor color
 repairCursor:
     push eax
     mov al, [cursorColor]
@@ -529,20 +534,10 @@ putc:
     mov [FBUFFER + eax], bx
     ret
 
-; escribe en la posicion del cursor
-global write
-write:
-    mov bx, [esp + 4]
-    xor al, al
-    mov [cursorColor], al
-    mov eax, [pointer]
-    mov [FBUFFER + eax], bx
-    UPD_POINTER 2
-    ret
-
-; escribe en el array donde es guardado el texto y manda a pintar
-global writeScroll
-writeScroll:
+; Write in replace mode
+; replaceWrite(word char)
+global replaceWrite
+replaceWrite:
     call action
     xor ebx, ebx
     mov bx, [esp + 4]
@@ -554,7 +549,7 @@ writeScroll:
     jne .no_enter
     push eax
     push ebx
-    MOVE_ALL_RIGTH
+    MOVE_ALL_RIGHT
     pop ebx
     pop eax
     .no_enter:
@@ -570,9 +565,10 @@ writeScroll:
     PRINT
     ret
 
-; escribe en el array donde es guardado el texto y manda a pintar
-global nonReWrite
-nonReWrite:
+; Write in default writing mode
+; replaceWrite(word char)
+global write
+write:
     call action
     xor ebx, ebx
     xor eax, eax
@@ -580,7 +576,7 @@ nonReWrite:
     mov eax, [pointer]
     add eax, [viewStart]
     push eax
-    MOVE_ALL_RIGTH
+    MOVE_ALL_RIGHT
     pop eax
     mov bx, [esp + 4]
     ; escribe en el texto + la posicion inicial actual + el cursor
@@ -595,16 +591,16 @@ nonReWrite:
     PRINT
     ret
 
-; Escribe 4 lineas de presentacion
+; show presentation
 global start
 start:
     OUTPUT_LINE text, FBUFFER + 1660, 15
     OUTPUT_LINE raul, FBUFFER + 1810, 25
     OUTPUT_LINE teno, FBUFFER + 1974, 22
-    OUTPUT_LINE finalText, FBUFFER + 2114, 42
+    OUTPUT_LINE finalText, FBUFFER + 2124, 32
     mov edi, input
     mov ecx, 2000000
-    mov ax, 0 | DEFCOL
+    mov ax, NULL
     cld
     rep stosw
     mov eax, 0
@@ -612,7 +608,7 @@ start:
     mov [line], eax
     mov [lineCounter], eax
     mov [lastChar], eax
-    mov [graderLine], eax
+    mov [greaterLine], eax
     mov [cursorColor], al
     mov [writeMode], al
     mov [capsLockButton], al
@@ -621,7 +617,8 @@ start:
     mov word [eax], 255 | DEFCOL
     ret
 
-; Pone el indicador de modo
+;  write the name of the actual mode
+; putName(dword index)
 global putName
 putName:
     OUTPUT_LINE nullLine, FBUFFER + 3842, 15
@@ -630,7 +627,7 @@ putName:
     shl eax, cl
     OUTPUT_LINE [modesNames + eax], FBUFFER + 3842, [lengths + eax]
     ret 4
-; Mueve el pointer y borra el ultimo char
+; delete previous char
 global backSpace
 backSpace:
     push eax
@@ -651,7 +648,8 @@ backSpace:
     pop eax
     ret
 
-;desplaza el cursor
+; move the cursor
+; move(dword direction)
 global move
 move:
     push eax
@@ -663,7 +661,7 @@ move:
     PRINT
     pop eax
     ret
-; hace delete
+; delete next char
 global delete
 delete:
     push eax
@@ -692,7 +690,7 @@ delete:
     call action
     pop eax
     ret
-;pone el enter camina el cursor hasta la siguiente fila y pone el texto correctamente 
+; put an "Enter" caracter and adjust line
 global finishLine
 finishLine:
     push eax
@@ -704,7 +702,7 @@ finishLine:
     mov edx, [line]
     .unFinish:
         push edx
-        MOVE_ALL_RIGTH
+        MOVE_ALL_RIGHT
         UPD_POINTER 2
         pop edx
         mov eax, [line]
@@ -720,7 +718,7 @@ finishLine:
     pop eax
     ret
 
-; MODO VISUAL
+; initialize Visual mode
 global initializeVisual
 initializeVisual:
     mov eax, [pointer]
@@ -735,14 +733,14 @@ initializeVisual:
     add esp, 4
     ret
 
-; para cuando salga del visual
+; put default color on all the screen
 global restoreScreen
 restoreScreen:
     SCREEN_COLOR 
     PRINT
     ret
 
-; pinta la seleccion
+; Paint the selected text
 global setSelection
 setSelection:
     ; limpia los cambios de coloracion
@@ -756,7 +754,7 @@ setSelection:
     cmp al, 0
     jne .line
     mov esi, [posStart]  ; posicion inicial
-    mov [inicio], esi
+    mov [textStart], esi
     mov ecx, [pointer]
     add ecx, [viewStart]
     add ecx, input
@@ -765,7 +763,7 @@ setSelection:
     cmp esi, ecx
     jb .setMark
     xchg ecx, esi
-    mov [inicio], esi
+    mov [textStart], esi
     jmp .setMark
     .line:
         mov eax, [lineStart]
@@ -784,11 +782,11 @@ setSelection:
         add esi, input
         add ecx, input
         xor ebx, ebx
-        mov [inicio], esi
+        mov [textStart], esi
     .setMark:
         push ebx
         lodsw
-        cmp ax, 0 | DEFCOL
+        cmp ax, NULL
         je .noPaint
         mov bl, al
         mov ax, VISUALCOL
@@ -813,7 +811,7 @@ setSelection:
     PRINT
     ret 
 
-; guarda el texto seleccionado
+; Copy the selected text
 global yank
 yank:
     mov cl, [mVisual]
@@ -821,10 +819,10 @@ yank:
     mov ecx, [len]
     mov [realLen], ecx
     SCREEN_COLOR
-    OUTPUT_LINE [inicio], trash, [realLen]
+    OUTPUT_LINE [textStart], trash, [realLen]
     ret
 
-; copie el texto guardado anteriormente
+; Copy the selected text
 global paste
 paste:
     call safe
@@ -857,7 +855,7 @@ paste:
         je .end
         dec ecx
         lodsw
-        cmp ax, 0 | DEFCOL
+        cmp ax, NULL
         je .copieText
         push esi
         push ecx
@@ -901,7 +899,7 @@ paste:
     je .conti2
     cmp word [eax], 255 | DEFCOL
     je .conti2
-    cmp word [eax], 0 | DEFCOL
+    cmp word [eax], NULL
     jne .for
     mov word [eax], 255 | DEFCOL
     .conti2:
@@ -909,7 +907,7 @@ paste:
     mov [linealAction], al
     ret
 
-; Reinicia el programa
+; restart the application
 global reboot
 reboot:
     xor eax, eax
@@ -918,11 +916,11 @@ reboot:
     mov [lineStart], eax
     mov [mVisual], al
     mov [len], eax
-    mov [inicio], eax
+    mov [textStart], eax
     mov [realLen], eax
     mov [shift], al
     mov [control], al
-    mov eax, 2198
+    mov eax, 2188
     mov [pointer], eax
     ret
 
@@ -938,12 +936,12 @@ cYank:
     add eax, input
     sub eax, 160
     mov bx, [eax]
-    cmp bx, 0 | DEFCOL
+    cmp bx, NULL
     je .fin
     cmp bx, 255 | DEFCOL
     je .fin
     push bx
-    call nonReWrite
+    call write
     pop bx
     .fin:
     pop eax
@@ -960,12 +958,13 @@ action:
 ; safe screen
 global safe
 safe:
+    OUTPUT_LINE input, previousInput, 2000000
     CHANGE_MEM pointer, cpPointer
     CHANGE_MEM viewStart, cpVStart
     CHANGE_MEM lastChar, cpLChar
     CHANGE_MEM line, cpLine
     CHANGE_MEM lineCounter, cpLCounter
-    CHANGE_MEM graderLine, cpGLine
+    CHANGE_MEM greaterLine, cpGLine
     CHANGE_MEM cursorColor, cpCColor
     xor al, al
     mov [linealAction], al
@@ -979,7 +978,7 @@ undo:
     CHANGE_MEM cpLChar, lastChar
     CHANGE_MEM cpLine, line
     CHANGE_MEM cpLCounter, lineCounter
-    CHANGE_MEM cpGLine, graderLine
+    CHANGE_MEM cpGLine, greaterLine
     CHANGE_MEM cpCColor,  cursorColor
     PRINT
     ret
@@ -998,7 +997,6 @@ jumpTop:
     pop eax
     ret   
 
-
 ; move to a specific line of the screen
 global jumpAt
 jumpAt:
@@ -1007,12 +1005,12 @@ jumpAt:
     cmp eax, [esp + 4]
     je .end
     jb .less
-    .grader:
+    .greater:
     UPD_POINTER -160
     mov edx, [line]
     cmp edx, [esp + 4]
     je .end
-    jmp .grader
+    jmp .greater
     .less:
         xor edx, edx
         UPD_POINTER 160
@@ -1046,12 +1044,11 @@ jumpBot:
    PRINT
    ret
 
-
 ; compute prefix function for KMP
 prefixFunction:
     push ebp
     mov ebp, esp
-    LENGTHOF [esp + 8]
+    LENGTH_OF [esp + 8]
     mov [paternLen], ecx
     push bx
     push esi
@@ -1084,7 +1081,6 @@ prefixFunction:
     pop ebp
     ret
 
-; we all know what this do
 ;[esp + 4] ip string patern
 global KMP
 KMP:
@@ -1096,10 +1092,12 @@ KMP:
     push ebx
     push edx
    ; mov edx, [paternLen]
-    CANTOFCHAR   ; inputLen = input.Length
+    ;CANTOFCHAR   ; inputLen = input.Length
     xor ebx, ebx
     mov bx, -1   ; k 
-    xor ecx, ecx
+    mov ecx, [startLen]
+    mov esi, matches
+    cld
     .for:
         .while:
            cmp bx, -1   ; k > -1
@@ -1121,10 +1119,14 @@ KMP:
         jne .continue2
         add bx, [pi] ; k = pi[k]
         ;Action
+        sub ecx, [paternLen]
+        mov [esi], ecx
+        add ecx, [paternLen]
+        add esi, 4
         ;
         ;
         .continue2:
-        inc ecx
+        add ecx, 2
         cmp ecx, [inputLen]
         jb .for
     pop edx
@@ -1133,4 +1135,27 @@ KMP:
     pop esi
     ret
 
+; set inputLen to the bottom of the input
+setInputLen:
+    push dword [lineCounter]
+    push dword [line]
+    call jumpBot
+    push dword [line]
+    pop dword [inputLen] 
+    .while:
+        xor edx, edx
+        UPD_POINTER 2
+        cmp edx, 0
+        je .ret
+        jmp .while
+        .ret:
+        xor edx, edx
+        mov eax, [inputLen]
+        mov ebx, 160
+        imul ebx
+        add eax, [lineCounter]
+        mov [inputLen], eax
+        call jumpAt
+        UPD_POINTER [esp]
+        ret 4
     

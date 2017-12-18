@@ -35,7 +35,6 @@ timerD resd 1
 section .text
 
 extern scan
-extern convert2
 
 ; rtcs()
 ; Return the second value of the real-time-clock. Note that the value may or
