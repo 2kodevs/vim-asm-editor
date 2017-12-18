@@ -15,15 +15,18 @@ extern cursor
 ; Scan for new keypress. Returns new scancode if changed since last call
 global scan
 scan:
-  ; Scan.
-  ;.check:
-      in al, 0x64
-      test al, 1
-      jz scan
-  ;    in al, 0x64
-  ;    test al, 32
-  ;    jnz .climb
-  
+  jmp .sc
+
+  .l:
+  call cursor
+  .sc:
+  in al, 0x64
+  test al, 1
+  jz .l
+  ;in al, 0x64
+  ;test al, 32
+  ;jnz scan
+
   in al, 0x60
 
   cmp al, KEY.LeftSHF
@@ -41,6 +44,7 @@ scan:
   add bl, 80h
   cmp bl, al
   je shiftOff
+
   jmp continue
 
 shiftOn:
@@ -57,13 +61,17 @@ shiftOff:
   jmp continue
 controlOff:
   xor ebx, ebx
-  mov [control], ebx 
+  mov [control], bl 
 
   ; If scancode has changed, update key and return it.
 continue:
   mov bl, al
   cmp al, [key]
   je .release
+ ; mov cl, [key]
+ ; add cl, 80h
+ ; cmp al, cl
+ ; je .zero
   mov [key], al
   cmp al, 0xA6
   ja .zero
@@ -71,7 +79,8 @@ continue:
   je .zero
   jmp .ret
   .zero:
-  mov al, 0
+  mov [key], al
+  xor al, al
   jmp .ret
 
   .release:

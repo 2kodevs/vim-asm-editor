@@ -13,6 +13,7 @@
 %endmacro
 section .data
 
+numbs dd 0, 9, 8, 7, 6, 5, 4, 3, 2, 1
 characters db "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\", "a", "s", "d", "f", "g", "h", "j", "k", "l", 59, 96, "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", " "
 uppers db "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "{", "}", "|", "A", "S", "D", "F", "G", "H", "J", "K", "L", ":", 34, "Z", "X", "C", "V", "B", "N", "M", "<", ">", "?", " "
 keys db KEY.Aprox, KEY.1, KEY.2, KEY.3, KEY.4, KEY.5, KEY.6, KEY.7, KEY.8, KEY.9, KEY.0, KEY.Script, KEY.Equal, KEY.Q, KEY.W, KEY.E, KEY.R, KEY.T, KEY.Y, KEY.U, KEY.I, KEY.O, KEY.P, KEY.OpenSquare, KEY.ClosedSquare, KEY.Back_Slash, KEY.A, KEY.S, KEY.D, KEY.F, KEY.G, KEY.H, KEY.J, KEY.K, KEY.L, KEY.Two_Dots, KEY.Quotes, KEY.Z, KEY.X, KEY.C, KEY.V, KEY.B, KEY.N, KEY.M, KEY.Comma, KEY.Dot, KEY.Slash, KEY.Spc
@@ -26,8 +27,21 @@ shift db 0
 global control
 control db 0
 
+global doubleG
+doubleG db 0
+
 global writeMode
 writeMode db 0
+
+; 1 if a action was done otherwise 0
+global actioned
+actioned db 0
+
+global readNumber
+readNumber dd 0
+
+global numberController
+numberController db 0
 
 section .text
 
@@ -44,6 +58,10 @@ extern cYank
 extern exit
 extern undo
 extern putName
+extern jumpTop
+extern jumpAt
+extern jumpBot
+extern reboot
 
 ; verifica si se presiono el caracter de salida
 isExit:
@@ -56,8 +74,77 @@ isExit:
 ; toma decisiones en modo normal
 global normalActions
 normalActions:
+    cmp al, 0xA2
+    je .ret
+    cmp al, 0x82
+    jae .check#
+    jmp .next
+    .check#:
+    cmp al, 0x8B
+    jbe .ret
+    .next:
+    cmp al, KEY.LeftSHF
+    je .ret
+    cmp al, KEY.G
+    jne .not_G
+    mov byte [actioned], 0
+    mov al, [capsLockButton] ; comprobar si la mayuscula esta presionada
+    xor al, [shift]  
+    cmp al, 1
+    jne .GG
+    mov al, [numberController]
+    cmp al, 1
+    jne .shiftG
+    mov eax, [readNumber]   
+    push eax
+    call jumpAt
+    mov byte [readNumber], 0
+    mov byte [numberController], 0
+    mov byte [doubleG], 0
+    jmp .ret
+    .shiftG:                
+    call jumpBot
+    mov byte [doubleG], 0
+    jmp .ret
+    .GG:
+    inc byte [doubleG]
+    mov bl, [doubleG]              
+    cmp bl, 2
+    jne .ret               
+    call jumpTop
+    mov byte [doubleG], 0
+    jmp .ret
+    .not_G:
+    mov byte [doubleG], 0
+
+
+    cmp al, KEY.0
+    ja .not_number
+    cmp al, KEY.1
+    jb .not_number
+    mov byte [actioned], 1
+    mov cl, 1
+    mov [numberController], cl
+    mov ecx, 11
+    mov edi, keys
+    cld
+    repne scasb
+    inc ecx
+    mov esi, numbs
+    rep lodsd
+    xor ebx, ebx
+    mov ecx, eax
+    mov ebx, [readNumber]
+    mov eax, 10
+    xor edx, edx
+    imul ebx
+    add eax, ecx
+    mov [readNumber], eax
+    jmp .ret
+    .not_number:
+    mov dword [readNumber], 0
+    mov byte [numberController], 0
     call isExit
-    mov byte [double], 0
     cmp al, KEY.numDel
     je .del
     cmp al, KEY.X
@@ -82,7 +169,9 @@ normalActions:
     .left:
     mov ebx, -2
     push ebx
-    call move
+    call move 
+    mov bl, 1
+    mov [actioned], bl
     add esp, 4
     jmp .ret
     .not_left:
@@ -94,6 +183,8 @@ normalActions:
     mov ebx, 2
     push ebx
     call move
+    mov bl, 1
+    mov [actioned], bl
     add esp, 4
     jmp .ret
     .not_right:
@@ -105,6 +196,8 @@ normalActions:
     mov ebx, -160
     push ebx
     call move
+    mov bl, 1
+    mov [actioned], bl
     add esp, 4
     jmp .ret
     .not_up:
@@ -116,18 +209,31 @@ normalActions:
     mov ebx, 160
     push ebx
     call move
+    mov bl, 1
+    mov [actioned], bl
     add esp, 4
     jmp .ret
     .not_down:
     cmp al, KEY.P
     jne .not_p
     call paste
+    mov bl, 1
+    mov [actioned], bl
     .not_p:
     cmp al, KEY.U
     jne .not_u
     call undo
     .not_u:
     .ret:
+    ; Para interrumpir los comandos de doble letra
+    ;mov bl, [actioned]
+    ;cmp bl, 1
+    ;jne .final
+    ;xor bl, bl
+    ;mov [doubleG], bl
+    ;mov [readNumber], bl
+    ;.final:
+    ;.ret:
     ret
 ; toma decisiones en modo visual
 global visualActions
@@ -141,6 +247,8 @@ visualActions:
     mov ebx, -2
     push ebx
     call setSelection
+   ; mov bl, 1
+    ;mov [actioned], bl
     add esp, 4
     jmp .ret
     .not_left:
@@ -152,6 +260,8 @@ visualActions:
     mov ebx, 2
     push ebx
     call setSelection
+    ;mov bl, 1
+    ;mov [actioned], bl
     add esp, 4
     jmp .ret
     .not_right:
@@ -163,6 +273,8 @@ visualActions:
     mov ebx, -160
     push ebx
     call setSelection
+    ;mov bl, 1
+    ;mov [actioned], bl
     add esp, 4
     jmp .ret
     .not_up:
@@ -174,6 +286,8 @@ visualActions:
     mov ebx, 160
     push ebx
     call setSelection
+    ;mov bl, 1
+    ;mov [actioned], bl
     add esp, 4
     jmp .ret
     .not_down:
@@ -207,8 +321,19 @@ visualActions:
     jne .not_y
     inc byte [exit]
     call yank
+    ;mov bl, 1
+    ;mov [actioned], bl
     .not_y:
+    ;xor bx, bx
+    ;mov [actioned], bl
     .ret:
+    ; Para interrumpir los comandos de doble letra
+    ;mov bl, [actioned]
+    ;cmp bl, 1
+    ;jne .final
+    ;xor bl, bl
+    ;mov [doubleG], bl
+    ;.final:
     ret
 ; con inst de cadena, deja en bx el caracter
 global convert2

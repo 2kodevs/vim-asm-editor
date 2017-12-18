@@ -68,10 +68,10 @@ game:
         call start
          
         ; wait Press
-        call scan
+        ;call scan
         ;mov cl, al
         pressOnKey:
-            call cursor
+            ;scall cursor
             call scan
 
             ;cmp al, 0xA6
@@ -99,8 +99,10 @@ game:
             mov eax, 4
             push eax
             call putName
+            mov byte [doubleG], 0
+            mov byte [readNumber], 0
             .normalLoop:
-                call cursor
+                ;call pauseCursor
                 call scan
                 cmp al, 0
                 je .normalLoop
@@ -115,14 +117,16 @@ game:
                 je .replaceMode 
                 .check_others:
                 cmp al, KEY.V
-                je .visualMode
+                je .visualMode   
                 cmp al, KEY.C
-                jne .normalLoop
+                jne .not_C
                 mov al, [control]
                 cmp al, 1
                 jne .normalLoop
                 call reboot
                 jmp game
+                .not_C:             
+                jmp .normalLoop
 
         ; enter in insert mode
         .insertMode:
@@ -175,31 +179,22 @@ draw.green:
     ret
 
 
-get_input:
-    ;mov al, 1
-    ;push ax
-    ;add esp, 2
-    call cursor
+get_input:  
+    ;call cursor
     call scan
     mov [lastKey], al
     push ax
-    ; The value of the input is on 'word [esp]'
-
-    ; Your bindings here
     call convert2
     cmp bx, 0 | DEFCOL
     je no
     push bx
-    ; look at this bitch
     xor ebx, ebx
+    mov [doubleG], bl
     mov bl, [writeMode]
     mov cl, 2
     shl ebx, cl
     call [writeTools + ebx]
-
     add esp, 2
     no:
     add esp, 2 ; free the stack
     ret
-
-    
