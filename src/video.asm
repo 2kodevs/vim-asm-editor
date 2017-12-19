@@ -230,6 +230,7 @@
             sub eax, 160
             mov [lineCounter], eax
         %%otherPointers:
+            call showPosition
             mov eax, [pointer]
             mov ebx, [viewStart]
             ; adiciona el incremento del puntero
@@ -412,7 +413,7 @@ viewStart dd 0
 global pointer
 pointer dd 2188
 
-line dd 0               ; actual line
+line dd 0              ; actual line
 greaterLine dd 0        ; greater line reached
 lineCounter dd 0        ; column pointer
 lastChar dd 0           ; position of the last char
@@ -463,6 +464,8 @@ visualLine dw "-" | DEFCOL, "-" | DEFCOL, "V" | DEFCOL, "I" | DEFCOL, "S" | DEFC
 cmdLine dw "/" | DEFCOL
 modesNames dd insert, replace, visual, visualLine, nullLine, cmdLine
 lengths dd 10, 11, 10, 15, 0, 1
+
+positionString dw NULL, NULL, NULL, NULL, NULL, "," | DEFCOL, NULL, NULL
 
 ; empty line
 nullLine times 80 dw NULL
@@ -563,7 +566,7 @@ replaceWrite:
     mov eax, [pointer]
     UPD_POINTER 2
     PRINT
-    ret
+    ret 2
 
 ; Write in default writing mode
 ; replaceWrite(word char)
@@ -589,7 +592,7 @@ write:
     mov eax, [pointer]
     UPD_POINTER 2
     PRINT
-    ret
+    ret 2
 
 ; show presentation
 global start
@@ -660,7 +663,7 @@ move:
     FORWARD [esp + 8]
     PRINT
     pop eax
-    ret
+    ret 4
 ; delete next char
 global delete
 delete:
@@ -687,7 +690,6 @@ delete:
     UPD_POINTER [temp]
     call backSpace
     .ok:
-    call action
     pop eax
     ret
 ; put an "Enter" caracter and adjust line
@@ -695,6 +697,7 @@ global finishLine
 finishLine:
     push eax
     push ebx
+    call action
     call repairCursor
     mov eax, [pointer]
     add eax, [viewStart]
@@ -713,7 +716,6 @@ finishLine:
     mov bx, 255 | DEFCOL
     mov [eax], bx
     PRINT
-    call action
     pop ebx
     pop eax
     ret
@@ -730,7 +732,6 @@ initializeVisual:
     xor eax, eax
     push eax
     call setSelection
-    add esp, 4
     ret
 
 ; put default color on all the screen
@@ -741,6 +742,7 @@ restoreScreen:
     ret
 
 ; Paint the selected text
+; setSelection(dword advance)
 global setSelection
 setSelection:
     ; limpia los cambios de coloracion
@@ -748,7 +750,6 @@ setSelection:
     cld
     push dword [esp + 4]
     call move
-    add esp, 4
     ; verifica el modo
     mov al, [mVisual]
     cmp al, 0
@@ -809,7 +810,7 @@ setSelection:
     mov bl, cl
     mov [eax], bx
     PRINT
-    ret 
+    ret 4
 
 ; Copy the selected text
 global yank
@@ -867,7 +868,6 @@ paste:
         shl ebx, cl
         push ax
         call [writeTools + ebx]
-        add esp, 2
         jmp .pops
         .Enter:
             call finishLine
@@ -1158,4 +1158,110 @@ setInputLen:
         call jumpAt
         UPD_POINTER [esp]
         ret 4
+
+; Put in the last line the number of lines and columns
+global showPosition
+showPosition:
+    push eax
+    push ebx
+    push ecx
+    push edx
+    cld
+    mov edi, positionString
+    mov ecx, [line]  
+    inc ecx       
+    mov eax, eax
+    mov ebx, 10000
+    xor edx, edx
+    idiv ebx
+    push ax
+    add ax, DEFCOL
+    add al, 48
+    stosw                   
+    pop ax
+    xor edx, edx
+    imul ebx
+    sub ecx, eax
+    mov eax, ecx
+    mov ebx, 1000
+    xor edx, edx
+    idiv ebx
+    push ax
+    add ax, DEFCOL
+    add al, 48
+    stosw                    
+    pop ax
+    xor edx, edx
+    imul ebx
+    sub ecx, eax
+    mov eax, ecx
+    mov ebx, 100
+    xor edx, edx
+    idiv ebx
+    push ax
+    add ax, DEFCOL
+    add al, 48
+    stosw                   
+    pop ax
+    xor edx, edx
+    imul ebx
+    sub ecx, eax
+    mov eax, ecx
+    mov ebx, 10
+    xor edx, edx
+    idiv ebx
+    push ax
+    add ax, DEFCOL
+    add al, 48
+    stosw                   
+    pop ax
+    mov eax, edx
+    add ax, DEFCOL
+    add al, 48
+    stosw                   
+    ;column
+    add edi, 2              ;skip coma
+    mov ecx, [lineCounter]
+    add ecx, 2
+    shr ecx, 1
+    mov eax, ecx
+    mov ebx, 10
+    xor edx, edx
+    idiv ebx
+    push ax
+    add ax, DEFCOL
+    add al, 48
+    stosw                   
+    pop ax
+    mov eax, edx
+    add ax, DEFCOL
+    add al, 48
+    stosw        
+    mov esi, positionString
+    sub esi, 2
+    mov ecx, 4
+    .one:   ; check zeros
+        add esi, 2
+        cmp ecx, 0
+        je .two
+        dec ecx
+        cmp word [esi], 48 | DEFCOL
+        jne .one
+        mov word [esi], NULL
+        jmp .one       
+    .two:
+    mov esi, positionString
+    add esi, 12
+    cmp word [esi], 48 | DEFCOL
+    jne .print
+    mov word [esi], NULL
+    .print: 
+    OUTPUT_LINE positionString,  FBUFFER + 3962, 8
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    ret
+
+
     

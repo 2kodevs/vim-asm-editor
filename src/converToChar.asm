@@ -63,6 +63,7 @@ isExit:
 
 ; manage commands of normal mode
 ; normalActions(word keyCode)
+; that parameter is in "al"
 global normalActions
 normalActions:
     cmp al, 0xA2
@@ -162,7 +163,6 @@ normalActions:
     call move 
     mov bl, 1
     mov [actioned], bl
-    add esp, 4
     jmp .ret
     .not_left:
     cmp al, KEY.RIGHT
@@ -175,7 +175,6 @@ normalActions:
     call move
     mov bl, 1
     mov [actioned], bl
-    add esp, 4
     jmp .ret
     .not_right:
     cmp al, KEY.UP
@@ -188,7 +187,6 @@ normalActions:
     call move
     mov bl, 1
     mov [actioned], bl
-    add esp, 4
     jmp .ret
     .not_up:
     cmp al, KEY.DOWN
@@ -201,7 +199,6 @@ normalActions:
     call move
     mov bl, 1
     mov [actioned], bl
-    add esp, 4
     jmp .ret
     .not_down:
     cmp al, KEY.P
@@ -215,18 +212,10 @@ normalActions:
     call undo
     .not_u:
     .ret:
-    ; Para interrumpir los comandos de doble letra
-    ;mov bl, [actioned]
-    ;cmp bl, 1
-    ;jne .final
-    ;xor bl, bl
-    ;mov [doubleG], bl
-    ;mov [readNumber], bl
-    ;.final:
-    ;.ret:
     ret
 ; manage commands of visual mode
 ; visualActions(word keyCode)
+; that parameter is in "al"
 global visualActions
 visualActions:
     call isExit
@@ -238,7 +227,6 @@ visualActions:
     mov ebx, -2
     push ebx
     call setSelection
-    add esp, 4
     jmp .ret
     .not_left:
     cmp al, KEY.RIGHT
@@ -249,7 +237,6 @@ visualActions:
     mov ebx, 2
     push ebx
     call setSelection
-    add esp, 4
     jmp .ret
     .not_right:
     cmp al, KEY.UP
@@ -260,7 +247,6 @@ visualActions:
     mov ebx, -160
     push ebx
     call setSelection
-    add esp, 4
     jmp .ret
     .not_up:
     cmp al, KEY.DOWN
@@ -271,7 +257,6 @@ visualActions:
     mov ebx, 160
     push ebx
     call setSelection
-    add esp, 4
     jmp .ret
     .not_down:
     cmp al, KEY.CapsLock
@@ -297,7 +282,6 @@ visualActions:
         xor ebx, ebx
         push ebx
         call setSelection
-        pop ebx
         jmp .ret
     .not_v:
     cmp al, KEY.Y
@@ -309,12 +293,11 @@ visualActions:
     ret
 ; manage commands of insert mode
 ; insertActions(word keyCode)
+; that parameter is in "al"
 global insertActions
 insertActions:
     call isExit
-    push ax
     xor ebx, ebx
-    mov ax, [esp + 6]
     cmp al, KEY.Y
     jne .continue
     mov bx, 1
@@ -372,7 +355,6 @@ insertActions:
         mov ebx, -2
         push ebx
         call move
-        add esp, 4
         mov bx, NULL
         jmp .ret
         .not_left:
@@ -381,7 +363,6 @@ insertActions:
         mov ebx, 2
         push ebx
         call move
-        add esp, 4
         mov bx, NULL
         jmp .ret
         .not_right:
@@ -390,7 +371,6 @@ insertActions:
         mov ebx, -160
         push ebx
         call move
-        add esp, 4
         mov bx, NULL
         jmp .ret
         .not_up:
@@ -399,7 +379,6 @@ insertActions:
         mov ebx, 160
         push ebx
         call move
-        add esp, 4
         mov bx, NULL
         jmp .ret
         .not_down:
@@ -419,6 +398,5 @@ insertActions:
         .not_bsp:
         mov bx, NULL
     .ret:
-        pop ax
         ret
         

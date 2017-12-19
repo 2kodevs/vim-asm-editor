@@ -35,6 +35,7 @@ extern safe                 ; safe the actual screen state
 extern doubleG              ; store the number of pressed g's
 extern readNumber           ; store the input of numbers
 extern linealAction         ; store the state of last action
+extern showPosition        ; put actual line and column in the screen
 
 ; Bind a key to a procedure
 %macro bind 2
@@ -72,13 +73,15 @@ game:
         break:
         
         ; positionate the cursor in the screen's start
-        mov ebx, 0
+        xor ebx, ebx
         mov [pointer], ebx
+        call showPosition
 
         ; Enter in normal mode for first time  
         .normalMode:
-            xor eax, eax
+            mov al, [exit]
             mov [linealAction], al
+            xor eax, eax
             mov [exit], al
             call restoreScreen
             mov eax, 4
@@ -90,7 +93,6 @@ game:
                 call scan
                 cmp al, 0
                 je .normalLoop
-                call normalActions
                 cmp al, KEY.I
                 je .insertMode
                 cmp al, KEY.R
@@ -109,16 +111,18 @@ game:
                 jne .normalLoop
                 call reboot
                 jmp game
-                .not_C:             
+                .not_C:    
+                call normalActions         
                 jmp .normalLoop
 
         ; enter in insert mode
         .insertMode:
             xor eax, eax
-            mov [linealAction], al
             mov [writeMode], al
             push eax
             call putName
+            mov al, 1
+            mov [linealAction], al
             .read:
                 call get_input
                 mov al, [exit]
@@ -129,9 +133,11 @@ game:
         ; enter in replace mode
         .replaceMode:
             xor eax, eax
-            mov [linealAction], al
             mov al, 1
+            mov [linealAction], al
             mov [writeMode], al
+            push eax
+            call putName
             jmp .read
         
         ; enter in visual mode
@@ -167,7 +173,6 @@ draw.green:
 get_input:  
     call scan
     mov [lastKey], al
-    push ax
     call insertActions
     cmp bx, NULL
     je no
@@ -177,7 +182,5 @@ get_input:
     mov cl, 2
     shl ebx, cl
     call [writeTools + ebx]
-    add esp, 2
     no:
-    add esp, 2
     ret
