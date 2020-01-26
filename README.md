@@ -1,7 +1,19 @@
 # Vimasm
 
-Integrantes y grupo.
+## Authors ✒️
 
-Describir todo lo que se realizó en el proyecto, dejando claro cuáles fueron las características que se implementaron.
+- **Miguel Tenorio Potrony** -------> [stdevAntiD2ta](https://github.com/stdevAntiD2ta)
+- **Lázaro Raúl Iglesias Vera** ----> [stdevRulo](https://github.com/stdevRulo)
 
-Para más información acerca de la orientación del proyecto ir a [ORIENTACIÓN.md](ORIENTACIÓN.md)
+## Project Orientation and Dependencies
+
+- [ORIENTACIÓN.md](ORIENTACIÓN.md)
+
+## Features Implemented
+
+- Basic requirements
+- Undo one action
+- Line and column viewer
+- Overwrite Mode
+- Yank
+- Blinking cursor
