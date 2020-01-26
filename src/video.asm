@@ -33,6 +33,8 @@
 ; Push text to the right
 %macro MOVE_ALL_RIGHT 0.nolist
     cld
+    mov eax, [pointer]
+    add eax, [viewStart]
     mov esi, input
     add esi, [pointer]
     add esi, [viewStart]
